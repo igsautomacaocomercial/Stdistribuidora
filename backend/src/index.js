@@ -33,6 +33,13 @@ app.use('/print', require('./routes/print'));
 // Orcamentos route
 app.use('/api/orcamentos', require('./routes/orcamentos'));
 
+// PDV / Caixa routes
+app.use('/api/formas-pagamento', require('./routes/formas_pagamento'));
+app.use('/api/vendedores', require('./routes/vendedores'));
+app.use('/api/caixas', require('./routes/caixas'));
+app.use('/api/vendas', require('./routes/vendas'));
+app.use('/api/pdv', require('./routes/pdv'));
+
 // Auth route
 app.use('/api', require('./routes/auth'));
 

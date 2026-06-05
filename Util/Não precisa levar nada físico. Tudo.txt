@@ -1,0 +1,17 @@
+Não precisa levar nada físico. Tudo está na nuvem:
+
+Código: no GitHub → https://github.com/igsautomacaocomercial/Stdistribuidora.git
+Sistema rodando: no Render → https://stdistribuidora.onrender.com
+Banco de dados: no Render PostgreSQL
+No trabalho você só precisa:
+
+Instalar Node.js e Git (se não tiver)
+Clonar o repositório:
+git clone https://github.com/igsautomacaocomercial/Stdistribuidora.git
+Entrar na pasta e instalar dependências:
+cd Stdistribuidora
+cd backend
+npm install
+Rodar local:
+node src/index.js
+Pronto. Se quiser mexer no banco pelo terminal de lá, instala PostgreSQL ou usa o script Node que já fizemos (scripts/migrate-orcamentos.js).

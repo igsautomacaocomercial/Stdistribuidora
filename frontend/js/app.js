@@ -148,6 +148,12 @@ async function renderPage(page, params) {
   try {
     switch (page) {
       case 'dashboard': await renderDashboard(); break;
+      case 'pdv': await renderPDV(); break;
+      case 'caixa-dashboard': await renderCaixaDashboard(); break;
+      case 'formas-pagamento': await renderFormasPagamento(); break;
+      case 'vendedores': await renderVendedores(); break;
+      case 'vendas': await renderVendasList(); break;
+      case 'venda-detail': await renderVendaDetail(params); break;
       case 'ordens': await renderOrdensList(); break;
       case 'orcamentos': await renderOrcamentosList(); break;
       case 'orcamento-form': await renderOrcamentoForm(params); break;
@@ -217,6 +223,908 @@ async function renderDashboard() {
 // ============================================================================
 // ORDENS LIST
 // ============================================================================
+
+// ============================================================================
+// PDV
+// ============================================================================
+
+let _pdvState = { vendaId: null, itens: [], searchTimeout: null, selectedItemIdx: -1, clienteNome: '', clienteId: null, vendedorId: null, vendedorNome: '', observacao: '', descTipo: 'Valor', descValor: 0 };
+
+async function renderPDV() {
+  setTitle('Ponto de Venda');
+
+  // Verificar caixa
+  const cx = await API.get('/caixas/atual');
+  if (!cx.data) {
+    contentBody.innerHTML = `
+      <div class="empty" style="margin-top:60px;">
+        <div class="icon" style="font-size:60px;">&#128202;</div>
+        <h2>Caixa Fechado</h2>
+        <p style="color:var(--muted);margin:12px 0;">Abra o caixa para iniciar as vendas.</p>
+        <button class="btn btn-primary" onclick="abrirCaixaModal()" style="padding:12px 32px;font-size:16px;">Abrir Caixa</button>
+      </div>`;
+    return;
+  }
+
+  _pdxState = { ..._pdvState, vendaId: null, itens: [], selectedItemIdx: -1 };
+
+  let html = `
+  <div class="pdv-container">
+    <div class="pdv-left">
+      <div class="pdv-search">
+        <input id="pdvBusca" placeholder="Buscar produto (codigo, descricao, cod. barras) [F2]" autofocus>
+        <button class="btn btn-primary" onclick="buscarProdutoPDV()" style="padding:12px 20px;">Buscar</button>
+      </div>
+      <div class="pdv-results" id="pdvResultados">
+        <div class="empty"><p>Digite para buscar produtos</p></div>
+      </div>
+    </div>
+    <div class="pdv-right">
+      <div style="display:flex;gap:6px;font-size:12px;">
+        <span><strong>Cliente:</strong> <span id="pdvCliente">Nao informado</span></span>
+        <span><strong>Vendedor:</strong> <span id="pdvVendedor">Selecione</span></span>
+      </div>
+      <div class="pdv-cart" id="pdvCarrinho">
+        <table><thead><tr><th>#</th><th>Item</th><th>Qtd</th><th>Valor</th><th>Desc.</th><th>Total</th><th></th></tr></thead>
+        <tbody id="pdvItensTbody"><tr><td colspan="7"><div class="empty"><p>Carrinho vazio</p></div></td></tr></tbody></table>
+      </div>
+      <div class="pdv-totals" id="pdvTotais">
+        <div style="display:flex;justify-content:space-between;">
+          <span class="total-label">Subtotal:</span><span id="pdvSubtotal">R$ 0,00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;">
+          <span class="total-label">Desconto:</span><span id="pdvDesconto">R$ 0,00</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;border-top:2px solid #000;padding-top:6px;margin-top:6px;">
+          <span class="total-label" style="font-size:16px;font-weight:700;">TOTAL</span>
+          <span class="total-value" id="pdvTotal">R$ 0,00</span>
+        </div>
+      </div>
+      <div class="pdv-actions">
+        <button onclick="pdvSetCliente()"><span class="key-hint">F3</span>Cliente</button>
+        <button onclick="pdvSetVendedor()"><span class="key-hint">F4</span>Vendedor</button>
+        <button onclick="pdvDescontoGeral()"><span class="key-hint">F7</span>Desc.Geral</button>
+        <button class="btn-pdv-success" onclick="pdvFinalizar()" id="btnFinalizarPDV"><span class="key-hint">F8</span>Finalizar</button>
+        <button class="btn-pdv-danger" onclick="pdvCancelar()"><span class="key-hint">F10</span>Cancelar</button>
+      </div>
+    </div>
+  </div>`;
+
+  contentBody.innerHTML = html;
+  setupPDVKeyboard();
+
+  // Carregar vendedores
+  try {
+    const v = await API.get('/vendedores?status=Ativo');
+    if (v.data && v.data.length === 1) {
+      _pdvState.vendedorId = v.data[0].id;
+      _pdvState.vendedorNome = v.data[0].nome;
+      document.getElementById('pdvVendedor').textContent = v.data[0].nome;
+    }
+  } catch (e) {}
+}
+
+function setupPDVKeyboard() {
+  document.onkeydown = function(e) {
+    const key = e.key;
+    if (key === 'F2') { e.preventDefault(); document.getElementById('pdvBusca')?.focus(); }
+    else if (key === 'F3') { e.preventDefault(); pdvSetCliente(); }
+    else if (key === 'F4') { e.preventDefault(); pdvSetVendedor(); }
+    else if (key === 'F5') { e.preventDefault(); pdvSetQuantidade(); }
+    else if (key === 'F6') { e.preventDefault(); pdvDescontoItem(); }
+    else if (key === 'F7') { e.preventDefault(); pdvDescontoGeral(); }
+    else if (key === 'F8') { e.preventDefault(); pdvFinalizar(); }
+    else if (key === 'F9') { e.preventDefault(); pdvRemoverItem(); }
+    else if (key === 'F10') { e.preventDefault(); pdvCancelar(); }
+    else if (key === 'Escape') { document.getElementById('pdvBusca').value = ''; document.getElementById('pdvResultados').innerHTML = '<div class="empty"><p>Digite para buscar produtos</p></div>'; }
+    else if (key === 'Delete') { e.preventDefault(); pdvRemoverItem(); }
+    else if (key === 'ArrowUp') { e.preventDefault(); _pdvState.selectedItemIdx = Math.max(0, _pdvState.selectedItemIdx - 1); pdvHighlightItem(); }
+    else if (key === 'ArrowDown') { e.preventDefault(); _pdvState.selectedItemIdx = Math.min(_pdvState.itens.length - 1, _pdvState.selectedItemIdx + 1); pdvHighlightItem(); }
+    else if (key === 'Enter') {
+      const buscaFoc = document.activeElement === document.getElementById('pdvBusca');
+      if (buscaFoc) { e.preventDefault(); buscarProdutoPDV(); }
+    }
+  };
+}
+
+window.buscarProdutoPDV = async function() {
+  const q = document.getElementById('pdvBusca').value.trim();
+  if (!q) return;
+  try {
+    const res = await API.get('/pdv/buscar-produto?q=' + encodeURIComponent(q));
+    const resultados = document.getElementById('pdvResultados');
+    if (!res.data.length) { resultados.innerHTML = '<div class="empty"><p>Nenhum produto encontrado</p></div>'; return; }
+    resultados.innerHTML = res.data.map(p => `
+      <div class="pdv-item-card" onclick="pdvAddProduto(${p.id},'${escape(p.descricao)}',${p.preco_venda},${p.estoque_atual})">
+        <div class="info">
+          <div class="nome">${escape(p.descricao)}</div>
+          <div class="detalhe">${p.codigo_barras ? 'Cod: '+escape(p.codigo_barras) : ''} | Est: ${p.estoque_atual}</div>
+        </div>
+        <div class="preco">R$ ${(+p.preco_venda).toFixed(2)}</div>
+      </div>
+    `).join('');
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.pdvAddProduto = function(prodId, desc, preco, estoque) {
+  const item = {
+    _tempId: 'tmp_' + Date.now(),
+    produto_id: prodId,
+    descricao: desc,
+    quantidade: 1,
+    valor_unitario: preco,
+    desconto_tipo: null,
+    desconto_valor: 0,
+    valor_desconto: 0,
+    valor_total: preco,
+    custo_unitario: 0
+  };
+  _pdvState.itens.push(item);
+  _pdvState.selectedItemIdx = _pdvState.itens.length - 1;
+  document.getElementById('pdvBusca').value = '';
+  document.getElementById('pdvResultados').innerHTML = '<div class="empty"><p>Digite para buscar produtos</p></div>';
+  document.getElementById('pdvBusca').focus();
+  pdvRenderCarrinho();
+};
+
+window.pdvRemoverItem = function() {
+  if (_pdvState.selectedItemIdx < 0 || _pdvState.selectedItemIdx >= _pdvState.itens.length) { toast('Selecione um item na lista (setas)', 'warning'); return; }
+  _pdvState.itens.splice(_pdvState.selectedItemIdx, 1);
+  _pdvState.selectedItemIdx = Math.min(_pdvState.selectedItemIdx, _pdvState.itens.length - 1);
+  pdvRenderCarrinho();
+};
+
+window.pdvSetQuantidade = function() {
+  if (_pdvState.selectedItemIdx < 0) { toast('Selecione um item', 'warning'); return; }
+  const item = _pdvState.itens[_pdvState.selectedItemIdx];
+  const qtd = prompt('Quantidade para ' + item.descricao + ':', item.quantidade);
+  if (qtd === null || !parseFloat(qtd)) return;
+  item.quantidade = parseFloat(qtd);
+  pdvRecalcularItem(item);
+  pdvRenderCarrinho();
+};
+
+window.pdvDescontoItem = function() {
+  if (_pdvState.selectedItemIdx < 0) { toast('Selecione um item', 'warning'); return; }
+  const item = _pdvState.itens[_pdvState.selectedItemIdx];
+  const val = prompt('Desconto no item ' + item.descricao + ' (ex: 10% ou 5.00):');
+  if (val === null) return;
+  if (val.includes('%')) { item.desconto_tipo = 'Percentual'; item.desconto_valor = parseFloat(val) || 0; }
+  else { item.desconto_tipo = 'Valor'; item.desconto_valor = parseFloat(val) || 0; }
+  pdvRecalcularItem(item);
+  pdvRenderCarrinho();
+};
+
+window.pdvDescontoGeral = function() {
+  const val = prompt('Desconto geral na venda (ex: 10% ou 5.00):');
+  if (val === null) return;
+  if (val.includes('%')) { _pdvState.descTipo = 'Percentual'; _pdvState.descValor = parseFloat(val) || 0; }
+  else { _pdvState.descTipo = 'Valor'; _pdvState.descValor = parseFloat(val) || 0; }
+  pdvRenderCarrinho();
+};
+
+window.pdvSetCliente = function() {
+  openModal(`<h3>Selecionar Cliente</h3>
+    <div class="form-group"><label>Buscar cliente:</label><input class="form-control" id="pdvBuscaCliente" placeholder="Nome, CPF, telefone..." onkeyup="pdvBuscarCliente()" autofocus></div>
+    <div id="pdvListaClientes" style="max-height:300px;overflow-y:auto;"></div>
+    <div class="form-actions"><button class="btn btn-outline" onclick="pdvLimparCliente()">Sem Cliente</button><button class="btn btn-outline" onclick="closeModal()">Cancelar</button></div>`);
+};
+
+window.pdvBuscarCliente = async function() {
+  const q = document.getElementById('pdvBuscaCliente').value.trim();
+  if (!q) return;
+  try {
+    const res = await API.get('/clientes?limit=20&q=' + encodeURIComponent(q));
+    const lista = document.getElementById('pdvListaClientes');
+    if (!res.data.length) { lista.innerHTML = '<div class="empty"><p>Nenhum cliente</p></div>'; return; }
+    lista.innerHTML = res.data.map(c => `<div class="pdv-item-card" onclick="pdvSelecionarCliente(${c.id},'${escape(c.nome_razao_social)}')">
+      <div class="info"><div class="nome">${escape(c.nome_razao_social)}</div><div class="detalhe">${escape(c.cpf_cnpj||'')} | ${escape(c.telefone||'')}</div></div>
+    </div>`).join('');
+  } catch (e) {}
+};
+
+window.pdvSelecionarCliente = function(id, nome) {
+  _pdvState.clienteId = id; _pdvState.clienteNome = nome;
+  document.getElementById('pdvCliente').textContent = nome;
+  closeModal();
+};
+
+window.pdvLimparCliente = function() {
+  _pdvState.clienteId = null; _pdvState.clienteNome = '';
+  document.getElementById('pdvCliente').textContent = 'Nao informado';
+  closeModal();
+};
+
+window.pdvSetVendedor = function() {
+  openModal(`<h3>Selecionar Vendedor</h3><div id="pdvListaVendedores" style="max-height:300px;overflow-y:auto;"></div>
+    <div class="form-actions"><button class="btn btn-outline" onclick="closeModal()">Cancelar</button></div>`);
+  (async () => {
+    try {
+      const res = await API.get('/vendedores?status=Ativo');
+      document.getElementById('pdvListaVendedores').innerHTML = res.data.map(v => `<div class="pdv-item-card" onclick="pdvSelecionarVendedor(${v.id},'${escape(v.nome)}')">
+        <div class="info"><div class="nome">${escape(v.nome)}</div><div class="detalhe">Comissao: ${v.percentual_comissao}%</div></div>
+      </div>`).join('');
+      if (!res.data.length) document.getElementById('pdvListaVendedores').innerHTML = '<div class="empty"><p>Nenhum vendedor ativo</p></div>';
+    } catch (e) { toast(e.message, 'danger'); }
+  })();
+};
+
+window.pdvSelecionarVendedor = function(id, nome) {
+  _pdvState.vendedorId = id; _pdvState.vendedorNome = nome;
+  document.getElementById('pdvVendedor').textContent = nome;
+  closeModal();
+};
+
+function pdvRecalcularItem(item) {
+  const bruto = item.quantidade * item.valor_unitario;
+  if (item.desconto_tipo === 'Percentual') item.valor_desconto = bruto * (item.desconto_valor / 100);
+  else if (item.desconto_tipo === 'Valor') item.valor_desconto = Math.min(item.desconto_valor, bruto);
+  else item.valor_desconto = 0;
+  item.valor_total = bruto - item.valor_desconto;
+}
+
+function pdvRecalcularTotal() {
+  let subtotal = 0;
+  _pdvState.itens.forEach(item => { pdvRecalcularItem(item); subtotal += item.valor_total; });
+  let valDesc = 0;
+  if (_pdvState.descTipo === 'Percentual') valDesc = subtotal * (_pdvState.descValor / 100);
+  else valDesc = Math.min(_pdvState.descValor, subtotal);
+  return { subtotal, valDesc, total: subtotal - valDesc };
+}
+
+function pdvRenderCarrinho() {
+  const tbody = document.getElementById('pdvItensTbody');
+  if (!tbody) return;
+  if (!_pdvState.itens.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><p>Carrinho vazio</p></div></td></tr>'; return; }
+
+  tbody.innerHTML = _pdvState.itens.map((item, i) => `
+    <tr class="${i === _pdvState.selectedItemIdx ? 'selected' : ''}" onclick="_pdvState.selectedItemIdx=${i};pdvRenderCarrinho()">
+      <td>${i+1}</td>
+      <td>${escape(item.descricao)}</td>
+      <td><input class="qtd-input" type="number" value="${item.quantidade}" min="0.01" step="1" onchange="_pdvState.itens[${i}].quantidade=parseFloat(this.value)||1;pdvRecalcularItem(_pdvState.itens[${i}]);pdvRenderCarrinho()"></td>
+      <td>R$ ${(+item.valor_unitario).toFixed(2)}</td>
+      <td>${item.valor_desconto > 0 ? 'R$ ' + item.valor_desconto.toFixed(2) : '-'}</td>
+      <td>R$ ${(+item.valor_total).toFixed(2)}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="_pdvState.itens.splice(${i},1);_pdvState.selectedItemIdx=Math.min(${i},_pdvState.itens.length-1);pdvRenderCarrinho()">&times;</button></td>
+    </tr>
+  `).join('');
+
+  const totals = pdvRecalcularTotal();
+  document.getElementById('pdvSubtotal').textContent = 'R$ ' + totals.subtotal.toFixed(2);
+  document.getElementById('pdvDesconto').textContent = 'R$ ' + totals.valDesc.toFixed(2);
+  document.getElementById('pdvTotal').textContent = 'R$ ' + totals.total.toFixed(2);
+}
+
+function pdvHighlightItem() {
+  const rows = document.querySelectorAll('#pdvItensTbody tr');
+  rows.forEach((r, i) => r.classList.toggle('selected', i === _pdvState.selectedItemIdx));
+}
+
+window.pdvFinalizar = async function() {
+  if (!_pdvState.itens.length) { toast('Adicione itens ao carrinho', 'warning'); return; }
+  if (!_pdvState.vendedorId) { toast('Selecione um vendedor (F4)', 'warning'); return; }
+
+  // Verificar caixa
+  const cx = await API.get('/caixas/atual');
+  if (!cx.data) { toast('Caixa nao esta aberto', 'danger'); return; }
+
+  // Criar venda
+  try {
+    const res = await API.post('/vendas', {
+      caixa_id: cx.data.id, cliente_id: _pdvState.clienteId,
+      vendedor_id: _pdvState.vendedorId, observacao: _pdvState.observacao
+    });
+    _pdvState.vendaId = res.data.id;
+
+    // Adicionar itens
+    for (const item of _pdvState.itens) {
+      await API.post(`/vendas/${res.data.id}/itens`, {
+        produto_id: item.produto_id, descricao: item.descricao,
+        quantidade: item.quantidade, valor_unitario: item.valor_unitario,
+        desconto_tipo: item.desconto_tipo, desconto_valor: item.desconto_valor,
+        custo_unitario: item.custo_unitario
+      });
+    }
+
+    // Atualizar desconto geral e observacao
+    if (_pdvState.descValor > 0) {
+      await API.put(`/vendas/${res.data.id}`, { desconto_tipo: _pdvState.descTipo, desconto_valor: _pdvState.descValor });
+    }
+
+    // Abrir modal de pagamento
+    abrirModalPagamento(res.data.id);
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+async function abrirModalPagamento(vendaId) {
+  const venda = await API.get('/vendas/' + vendaId);
+  const formas = await API.get('/formas-pagamento?ativo=true');
+  const total = parseFloat(venda.data.valor_total);
+
+  let pagamentos = [];
+
+  let html = `
+  <h3>Finalizar Venda #${venda.data.numero_venda}</h3>
+  <div style="text-align:center;padding:12px;margin-bottom:12px;background:var(--bg);border-radius:8px;">
+    <div style="font-size:13px;color:var(--muted);">Total a Pagar</div>
+    <div style="font-size:32px;font-weight:700;">R$ ${total.toFixed(2)}</div>
+  </div>
+  <div style="margin-bottom:12px;">
+    <label>Forma de Pagamento</label>
+    <select class="form-control" id="selFormaPag">
+      ${formas.data.map(f => `<option value="${f.id}" data-troco="${f.permite_troco}" data-parcela="${f.permite_parcelamento}">${escape(f.descricao)}</option>`).join('')}
+    </select>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Valor</label><input class="form-control" id="pgValor" value="${total.toFixed(2)}" onblur="fmtMoeda(this)"></div>
+    <div class="form-group"><label>Valor Recebido</label><input class="form-control" id="pgRecebido" value="${total.toFixed(2)}" onblur="fmtMoeda(this);calcTrocoModal()"></div>
+  </div>
+  <div class="form-row">
+    <div class="form-group"><label>Parcelas</label><input class="form-control" id="pgParcelas" type="number" value="1" min="1"></div>
+    <div class="form-group"><label>Troco</label><input class="form-control" id="pgTroco" readonly style="font-weight:700;font-size:16px;color:var(--success);"></div>
+  </div>
+  <div class="form-group"><label>Observacao</label><input class="form-control" id="pgObs"></div>
+  <div class="form-actions">
+    <button class="btn btn-primary" onclick="addPagamentoModal(${vendaId}, ${total})">+ Adicionar Pagamento</button>
+    <button class="btn btn-success" onclick="finalizarVendaModal(${vendaId})" id="btnFinalizarModal" disabled>Finalizar Venda</button>
+    <button class="btn btn-outline" onclick="pdvCancelarVenda(${vendaId})">Cancelar Venda</button>
+  </div>
+  <div class="pagamento-list" id="listaPagamentos" style="margin-top:12px;">
+    <p style="font-size:12px;color:var(--muted);">Nenhum pagamento adicionado</p>
+  </div>`;
+
+  window._pdvPagamentos = [];
+  window._pdvTotalVenda = total;
+
+  openModal(html);
+  setTimeout(() => document.getElementById('pgValor')?.focus(), 100);
+}
+
+window.calcTrocoModal = function() {
+  const recebido = parseFloat(document.getElementById('pgRecebido').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+  const valor = parseFloat(document.getElementById('pgValor').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+  const troco = Math.max(0, recebido - valor);
+  document.getElementById('pgTroco').value = troco.toFixed(2);
+
+  const formaSelect = document.getElementById('selFormaPag');
+  const permiteTroco = formaSelect.options[formaSelect.selectedIndex]?.dataset.troco === 'true';
+  if (!permiteTroco && recebido > valor) {
+    toast('Esta forma de pagamento nao permite troco', 'warning');
+  }
+};
+
+window.addPagamentoModal = function(vendaId, total) {
+  const formaId = parseInt(document.getElementById('selFormaPag').value);
+  const formaDesc = document.getElementById('selFormaPag').options[document.getElementById('selFormaPag').selectedIndex].text;
+  const valor = parseFloat(document.getElementById('pgValor').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+  const recebido = parseFloat(document.getElementById('pgRecebido').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+  const parcelas = parseInt(document.getElementById('pgParcelas').value) || 1;
+  const troco = Math.max(0, recebido - valor);
+  const obs = document.getElementById('pgObs').value;
+
+  if (valor <= 0) { toast('Valor invalido', 'warning'); return; }
+
+  window._pdvPagamentos.push({ forma_pagamento_id: formaId, forma_desc: formaDesc, valor, parcelas, valor_recebido: recebido, troco, observacao: obs });
+
+  const totalPago = window._pdvPagamentos.reduce((s, p) => s + p.valor, 0);
+  const restante = Math.max(0, total - totalPago);
+  document.getElementById('pgValor').value = restante.toFixed(2);
+  document.getElementById('pgRecebido').value = restante.toFixed(2);
+  document.getElementById('pgObs').value = '';
+
+  document.getElementById('listaPagamentos').innerHTML = window._pdvPagamentos.map((p, i) =>
+    `<div class="pagamento-item"><span><strong>${escape(p.forma_desc)}</strong> R$ ${p.valor.toFixed(2)}${p.parcelas > 1 ? ' ('+p.parcelas+'x)' : ''}${p.troco > 0 ? ' - Troco: R$ '+p.troco.toFixed(2) : ''}</span></div>`
+  ).join('');
+
+  document.getElementById('btnFinalizarModal').disabled = totalPago < total;
+
+  if (totalPago >= total) { toast('Total atingido! Clique em Finalizar Venda', 'success'); }
+};
+
+window.finalizarVendaModal = async function(vendaId) {
+  if (!window._pdvPagamentos.length) { toast('Adicione pelo menos um pagamento', 'warning'); return; }
+  try {
+    await API.post(`/vendas/${vendaId}/finalizar`, { pagamentos: window._pdvPagamentos });
+    closeModal();
+    toast('Venda finalizada com sucesso!', 'success');
+    _pdvState = { ..._pdvState, vendaId: null, itens: [], selectedItemIdx: -1 };
+    renderPDV();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.pdvCancelarVenda = async function(vendaId) {
+  if (!confirm('Cancelar esta venda?')) return;
+  try {
+    await API.post(`/vendas/${vendaId}/cancelar`, { motivo: 'Cancelado pelo operador' });
+    closeModal();
+    toast('Venda cancelada', 'warning');
+    _pdvState = { ..._pdvState, vendaId: null, itens: [] };
+    renderPDV();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.pdvCancelar = function() {
+  if (!_pdvState.itens.length) return;
+  if (!confirm('Cancelar toda a venda?')) return;
+  _pdvState.itens = [];
+  _pdvState.selectedItemIdx = -1;
+  _pdvState.vendaId = null;
+  pdvRenderCarrinho();
+};
+
+// ============================================================================
+// CAIXA DASHBOARD
+// ============================================================================
+
+async function renderCaixaDashboard() {
+  setTitle('Caixa');
+  const cx = await API.get('/caixas/atual');
+  const temCaixa = cx.data;
+
+  topbarActions.innerHTML = temCaixa
+    ? `<button class="btn btn-warning" onclick="fecharCaixaModal()">Fechar Caixa</button>
+       <button class="btn btn-outline" onclick="sangriaModal()">Sangria</button>
+       <button class="btn btn-outline" onclick="reforcoModal()">Reforco</button>`
+    : `<button class="btn btn-primary" onclick="abrirCaixaModal()">Abrir Caixa</button>`;
+
+  let html = '<div style="margin-bottom:12px;">';
+  if (temCaixa) {
+    html += `<div class="caixa-card caixa-aberto" style="display:inline-block;margin-bottom:12px;">
+      <div class="caixa-label">Caixa #${temCaixa.id}</div>
+      <div class="caixa-label">Aberto por: ${escape(temCaixa.usuario_abertura)}</div>
+      <div class="caixa-label">${new Date(temCaixa.data_abertura).toLocaleString('pt-BR')}</div>
+      <div class="caixa-valor" style="color:var(--success);">ABERTO</div>
+    </div>`;
+
+    html += `<div class="caixa-cards">
+      <div class="caixa-card"><div class="caixa-label">Valor Inicial</div><div class="caixa-valor">R$ ${(+temCaixa.valor_inicial).toFixed(2)}</div></div>
+      <div class="caixa-card"><div class="caixa-label">Total Vendido</div><div class="caixa-valor">R$ ${(+temCaixa.total_vendido).toFixed(2)}</div></div>
+      <div class="caixa-card"><div class="caixa-label">Sangrias</div><div class="caixa-valor" style="color:var(--danger);">R$ ${(+temCaixa.total_sangrias).toFixed(2)}</div></div>
+      <div class="caixa-card"><div class="caixa-label">Reforcos</div><div class="caixa-valor" style="color:var(--success);">R$ ${(+temCaixa.total_reforcos).toFixed(2)}</div></div>
+    </div>`;
+
+    html += `<div style="margin-top:12px;"><button class="btn btn-outline" onclick="renderVendasList(1,{caixa_id:${temCaixa.id}})">Vendas do Caixa</button>
+      <button class="btn btn-outline" onclick="verMovimentosCaixa(${temCaixa.id})">Movimentos</button></div>`;
+  } else {
+    html += `<div class="empty"><div class="icon" style="font-size:50px;">&#128202;</div><h3>Caixa Fechado</h3><p style="color:var(--muted);">Clique em "Abrir Caixa" para iniciar o expediente.</p></div>`;
+  }
+  html += '</div>';
+
+  if (temCaixa) {
+    // Vendas do dia
+    try {
+      const vendas = await API.get('/vendas?caixa_id=' + temCaixa.id + '&limit=10');
+      html += `<div class="card"><div class="card-title">Ultimas Vendas</div><div class="table-wrap"><table>
+        <tr><th>#</th><th>Cliente</th><th>Vendedor</th><th>Valor</th><th>Status</th><th>Acao</th></tr>`;
+      if (vendas.data.length) {
+        vendas.data.forEach(v => {
+          html += `<tr><td>${v.numero_venda}</td><td>${escape(v.cliente_nome||'-')}</td><td>${escape(v.vendedor_nome||'')}</td>
+            <td>R$ ${(+v.valor_total).toFixed(2)}</td><td>${badge(v.status)}</td>
+            <td><button class="btn btn-outline btn-sm" onclick="navigate('venda-detail',${v.id})">Detalhes</button></td></tr>`;
+        });
+      } else {
+        html += '<tr><td colspan="6"><div class="empty"><p>Nenhuma venda hoje</p></div></td></tr>';
+      }
+      html += `</table></div></div>`;
+    } catch (e) {}
+  }
+
+  contentBody.innerHTML = html;
+}
+
+// ============================================================================
+// CAIXA FUNCTIONS
+// ============================================================================
+
+window.abrirCaixaModal = function() {
+  const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+  openModal(`
+    <h3>Abrir Caixa</h3>
+    <div class="form-group"><label>Responsavel</label><input class="form-control" id="cxResponsavel" value="${escape(user.nome||'')}"></div>
+    <div class="form-group"><label>Valor Inicial (R$)</label><input class="form-control" id="cxValorInicial" value="0.00" onblur="fmtMoeda(this)"></div>
+    <div class="form-group"><label>Observacao</label><textarea class="form-control" id="cxObs" rows="2"></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="confirmarAbrirCaixa()">Abrir Caixa</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+};
+
+window.confirmarAbrirCaixa = async function() {
+  const usuario = document.getElementById('cxResponsavel').value.trim();
+  const valor = parseFloat(document.getElementById('cxValorInicial').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+  if (!usuario) { toast('Informe o responsavel', 'warning'); return; }
+  try {
+    await API.post('/caixas/abrir', { usuario_abertura: usuario, valor_inicial: valor, observacao: document.getElementById('cxObs').value });
+    closeModal();
+    toast('Caixa aberto com sucesso!', 'success');
+    renderCaixaDashboard();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.fecharCaixaModal = async function() {
+  const cx = await API.get('/caixas/atual');
+  if (!cx.data) { toast('Nenhum caixa aberto', 'warning'); return; }
+  const c = cx.data;
+  openModal(`
+    <h3>Fechar Caixa #${c.id}</h3>
+    <div style="margin-bottom:12px;background:var(--bg);padding:12px;border-radius:8px;">
+      <p><strong>Total Vendido:</strong> R$ ${(+c.total_vendido).toFixed(2)}</p>
+      <p><strong>Sangrias:</strong> R$ ${(+c.total_sangrias).toFixed(2)}</p>
+      <p><strong>Reforcos:</strong> R$ ${(+c.total_reforcos).toFixed(2)}</p>
+    </div>
+    <div class="form-group"><label>Total em Dinheiro</label><input class="form-control" id="cxDinheiro" value="${(+c.valor_dinheiro).toFixed(2)}" onblur="fmtMoeda(this)"></div>
+    <div class="form-group"><label>Total em Pix</label><input class="form-control" id="cxPix" value="${(+c.valor_pix).toFixed(2)}" onblur="fmtMoeda(this)"></div>
+    <div class="form-group"><label>Total em Cartao Debito</label><input class="form-control" id="cxDebito" value="${(+c.valor_debito).toFixed(2)}" onblur="fmtMoeda(this)"></div>
+    <div class="form-group"><label>Total em Cartao Credito</label><input class="form-control" id="cxCredito" value="${(+c.valor_credito).toFixed(2)}" onblur="fmtMoeda(this)"></div>
+    <div class="form-group"><label>Total em Vale/Outros</label><input class="form-control" id="cxOutros" value="${(+c.valor_vale + +c.valor_outros).toFixed(2)}" onblur="fmtMoeda(this)"></div>
+    <div class="form-group"><label>Observacao</label><textarea class="form-control" id="cxObsFechar" rows="2"></textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="confirmarFecharCaixa(${c.id})">Fechar Caixa</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+};
+
+window.confirmarFecharCaixa = async function(id) {
+  const body = {
+    valor_dinheiro: parseFloat(document.getElementById('cxDinheiro').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0,
+    valor_pix: parseFloat(document.getElementById('cxPix').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0,
+    valor_debito: parseFloat(document.getElementById('cxDebito').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0,
+    valor_credito: parseFloat(document.getElementById('cxCredito').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0,
+    valor_outros: parseFloat(document.getElementById('cxOutros').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0,
+    observacao: document.getElementById('cxObsFechar').value
+  };
+  try {
+    await API.post('/caixas/fechar/' + id, body);
+    closeModal();
+    toast('Caixa fechado com sucesso!', 'success');
+    renderCaixaDashboard();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.sangriaModal = async function() {
+  const cx = await API.get('/caixas/atual');
+  if (!cx.data) { toast('Caixa nao aberto', 'warning'); return; }
+  const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+  openModal(`
+    <h3>Sangria</h3>
+    <div class="form-group"><label>Valor (R$)</label><input class="form-control" id="movValor" onblur="fmtMoeda(this)"></div>
+    <div class="form-group"><label>Motivo</label><textarea class="form-control" id="movMotivo" rows="2" placeholder="Ex: Pagamento de fornecedor"></textarea></div>
+    <div class="form-group"><label>Responsavel</label><input class="form-control" id="movResp" value="${escape(user.nome||'')}"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="confirmarMovimento(${cx.data.id},'sangria')">Registrar Sangria</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+};
+
+window.reforcoModal = async function() {
+  const cx = await API.get('/caixas/atual');
+  if (!cx.data) { toast('Caixa nao aberto', 'warning'); return; }
+  const user = JSON.parse(sessionStorage.getItem('user') || '{}');
+  openModal(`
+    <h3>Reforco</h3>
+    <div class="form-group"><label>Valor (R$)</label><input class="form-control" id="movValor" onblur="fmtMoeda(this)"></div>
+    <div class="form-group"><label>Motivo</label><textarea class="form-control" id="movMotivo" rows="2" placeholder="Ex: Abastecimento de troco"></textarea></div>
+    <div class="form-group"><label>Responsavel</label><input class="form-control" id="movResp" value="${escape(user.nome||'')}"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="confirmarMovimento(${cx.data.id},'reforco')">Registrar Reforco</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+};
+
+window.confirmarMovimento = async function(caixaId, tipo) {
+  const valor = parseFloat(document.getElementById('movValor').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+  const motivo = document.getElementById('movMotivo').value.trim();
+  const resp = document.getElementById('movResp').value.trim();
+  if (valor <= 0) { toast('Valor invalido', 'warning'); return; }
+  if (tipo === 'sangria' && !motivo) { toast('Motivo obrigatorio para sangria', 'warning'); return; }
+  try {
+    const endpoint = tipo === 'sangria' ? '/caixas/' + caixaId + '/sangria' : '/caixas/' + caixaId + '/reforco';
+    await API.post(endpoint, { valor, motivo, responsavel: resp });
+    closeModal();
+    toast((tipo === 'sangria' ? 'Sangria' : 'Reforco') + ' registrado!', 'success');
+    renderCaixaDashboard();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.verMovimentosCaixa = async function(caixaId) {
+  try {
+    const res = await API.get('/caixas/' + caixaId + '/movimentos');
+    let html = `<h3>Movimentos do Caixa #${caixaId}</h3>`;
+    if (!res.data.length) { html += '<p>Nenhum movimento</p>'; }
+    else {
+      html += `<table class="table"><tr><th>Data</th><th>Tipo</th><th>Valor</th><th>Motivo</th><th>Responsavel</th></tr>`;
+      res.data.forEach(m => {
+        html += `<tr><td>${fmtDate(m.created_at)}</td><td>${badge(m.tipo)}</td><td>R$ ${(+m.valor).toFixed(2)}</td><td>${escape(m.motivo||'-')}</td><td>${escape(m.responsavel||'-')}</td></tr>`;
+      });
+      html += '</table>';
+    }
+    openModal(html);
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+// ============================================================================
+// VENDAS LIST
+// ============================================================================
+
+async function renderVendasList(page = 1, filtros = {}) {
+  setTitle('Vendas');
+  topbarActions.innerHTML = `<button class="btn btn-outline" onclick="navigate('pdv')">+ Nova Venda (PDV)</button>`;
+
+  const params = new URLSearchParams({ page, limit: 20 });
+  if (filtros.caixa_id) params.set('caixa_id', filtros.caixa_id);
+  if (filtros.status) params.set('status', filtros.status);
+  if (filtros.data_inicio) params.set('data_inicio', filtros.data_inicio);
+  if (filtros.data_fim) params.set('data_fim', filtros.data_fim);
+
+  const res = await API.get('/vendas?' + params.toString());
+  const vendas = res.data;
+  const pag = res.pagination;
+
+  let html = `
+  <div class="search-bar">
+    <input class="form-control" type="date" id="filtroDataInicio" value="${escape(filtros.data_inicio||'')}" style="width:auto;">
+    <input class="form-control" type="date" id="filtroDataFim" value="${escape(filtros.data_fim||'')}" style="width:auto;">
+    <select class="form-control" id="filtroStatusVenda" style="width:auto;"><option value="">Todos</option><option value="Aberta">Aberta</option><option value="Finalizada">Finalizada</option><option value="Cancelada">Cancelada</option></select>
+    <button class="btn btn-primary btn-sm" onclick="buscarVendas()">Buscar</button>
+  </div>
+  <div class="card"><div class="table-wrap"><table>
+    <tr><th>#</th><th>Cliente</th><th>Vendedor</th><th>Data</th><th>Valor</th><th>Status</th><th>Acoes</th></tr>`;
+  if (!vendas.length) { html += '<tr><td colspan="7"><div class="empty"><p>Nenhuma venda</p></div></td></tr>'; }
+  else {
+    vendas.forEach(v => {
+      html += `<tr><td>${v.numero_venda}</td><td>${escape(v.cliente_nome||'-')}</td><td>${escape(v.vendedor_nome||'')}</td>
+        <td>${fmtDate(v.data_hora)}</td><td>R$ ${(+v.valor_total).toFixed(2)}</td><td>${badge(v.status)}</td>
+        <td><button class="btn btn-outline btn-sm" onclick="navigate('venda-detail',${v.id})">Detalhes</button></td></tr>`;
+    });
+  }
+  html += '</table></div></div>';
+
+  if (pag && pag.totalPages > 1) {
+    html += `<div class="pagination">${pag.page} de ${pag.totalPages}</div>`;
+  }
+
+  contentBody.innerHTML = html;
+}
+
+window.buscarVendas = function() {
+  renderVendasList(1, { data_inicio: document.getElementById('filtroDataInicio').value, data_fim: document.getElementById('filtroDataFim').value, status: document.getElementById('filtroStatusVenda').value });
+};
+
+// ============================================================================
+// VENDA DETAIL
+// ============================================================================
+
+async function renderVendaDetail(id) {
+  setTitle('Detalhes da Venda');
+  topbarActions.innerHTML = `<button class="btn btn-outline" onclick="navigate('vendas')">Voltar</button>`;
+
+  try {
+    const res = await API.get('/vendas/' + id);
+    const v = res.data;
+
+    let html = `
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;">
+        <div class="card-title" style="border:none;margin:0;padding:0;">Venda #${v.numero_venda}</div>
+        <div>${badge(v.status)}</div>
+      </div>
+      <p>Data: ${fmtDate(v.data_hora)} | Cliente: ${escape(v.cliente_nome||'Nao informado')} | Vendedor: ${escape(v.vendedor_nome)}</p>
+      ${v.status === 'Finalizada' ? `<button class="btn btn-danger btn-sm no-print" onclick="cancelarVenda(${id})">Cancelar Venda</button>` : ''}
+    </div>
+
+    <div class="card">
+      <div class="card-title">Itens</div>
+      <div class="table-wrap"><table>
+        <tr><th>#</th><th>Descricao</th><th>Qtd</th><th>Valor Unit.</th><th>Desconto</th><th>Total</th></tr>`;
+      if (v.itens && v.itens.length) {
+        v.itens.forEach((item, i) => {
+          html += `<tr><td>${i+1}</td><td>${escape(item.descricao)}</td><td>${item.quantidade}</td><td>R$ ${(+item.valor_unitario).toFixed(2)}</td><td>${item.valor_desconto > 0 ? 'R$ '+item.valor_desconto.toFixed(2) : '-'}</td><td>R$ ${(+item.valor_total).toFixed(2)}</td></tr>`;
+        });
+      }
+      html += `<tr style="font-weight:bold;background:var(--bg);"><td colspan="4" style="text-align:right;">Subtotal</td><td colspan="2">R$ ${(+v.subtotal).toFixed(2)}</td></tr>
+        ${v.valor_desconto > 0 ? `<tr><td colspan="4" style="text-align:right;">Desconto</td><td colspan="2">R$ ${(+v.valor_desconto).toFixed(2)}</td></tr>` : ''}
+        <tr style="font-weight:bold;font-size:15px;"><td colspan="4" style="text-align:right;">TOTAL</td><td colspan="2">R$ ${(+v.valor_total).toFixed(2)}</td></tr>
+      </table></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Pagamentos</div>
+      <div class="table-wrap"><table><tr><th>Forma</th><th>Valor</th><th>Parcelas</th><th>Troco</th></tr>`;
+      if (v.pagamentos && v.pagamentos.length) {
+        v.pagamentos.forEach(p => {
+          html += `<tr><td>${escape(p.forma_pagamento_descricao)}</td><td>R$ ${(+p.valor).toFixed(2)}</td><td>${p.parcelas > 1 ? p.parcelas+'x' : '-'}</td><td>${p.troco > 0 ? 'R$ '+p.troco.toFixed(2) : '-'}</td></tr>`;
+        });
+      } else {
+        html += '<tr><td colspan="4"><div class="empty"><p>Nenhum pagamento registrado</p></div></td></tr>';
+      }
+      html += `</table></div>
+    </div>`;
+
+    contentBody.innerHTML = html;
+  } catch (e) { contentBody.innerHTML = alertBox('danger', 'Erro: ' + e.message); }
+}
+
+window.cancelarVenda = async function(id) {
+  const motivo = prompt('Motivo do cancelamento:');
+  if (!motivo) return;
+  try {
+    await API.post('/vendas/' + id + '/cancelar', { motivo });
+    toast('Venda cancelada', 'warning');
+    renderVendaDetail(id);
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+// ============================================================================
+// FORMAS DE PAGAMENTO
+// ============================================================================
+
+async function renderFormasPagamento() {
+  setTitle('Formas de Pagamento');
+  let html = `
+  <div class="card">
+    <div class="card-title">Formas de Pagamento</div>
+    <div class="toolbar"><button class="btn btn-primary" onclick="formaPagForm()">+ Nova</button></div>
+    <table class="table"><thead><tr><th>Descricao</th><th>Tipo</th><th>Troco</th><th>Parcelamento</th><th>Taxa</th><th>Ativo</th><th>Acoes</th></tr></thead>
+    <tbody id="fpTbody"></tbody></table>
+  </div>`;
+  contentBody.innerHTML = html;
+  await renderFormasPagamentoList();
+}
+
+async function renderFormasPagamentoList() {
+  try {
+    const res = await API.get('/formas-pagamento?limit=50');
+    const tbody = document.getElementById('fpTbody');
+    if (!tbody) return;
+    if (!res.data.length) { tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><p>Nenhuma</p></div></td></tr>'; return; }
+    tbody.innerHTML = res.data.map(f => `<tr>
+      <td><strong>${escape(f.descricao)}</strong></td>
+      <td>${badge(f.tipo)}</td>
+      <td>${f.permite_troco ? 'Sim' : 'Nao'}</td>
+      <td>${f.permite_parcelamento ? 'Sim' : 'Nao'}</td>
+      <td>${f.taxa_percentual}%</td>
+      <td>${f.ativo ? badge('Ativo') : badge('Inativo')}</td>
+      <td><button class="btn btn-outline btn-sm" onclick="formaPagForm(${f.id})">Editar</button>
+        <button class="btn btn-danger btn-sm" onclick="excluirFormaPag(${f.id})">Excluir</button></td>
+    </tr>`).join('');
+  } catch (e) { toast(e.message, 'danger'); }
+}
+
+window.formaPagForm = async function(id) {
+  let f = { descricao: '', tipo: 'Outros', permite_troco: false, permite_parcelamento: false, taxa_percentual: 0, ativo: true };
+  if (id) {
+    try {
+      const res = await API.get('/formas-pagamento/' + id);
+      f = res.data;
+    } catch (e) { toast(e.message, 'danger'); return; }
+  }
+  const tipos = ['Dinheiro','Pix','Debito','Credito','Prazo','Outros'];
+  openModal(`
+    <h3>${id ? 'Editar' : 'Nova'} Forma de Pagamento</h3>
+    <div class="form-group"><label>Descricao *</label><input class="form-control" id="fpDesc" value="${escape(f.descricao)}"></div>
+    <div class="form-group"><label>Tipo</label><select class="form-control" id="fpTipo">${tipos.map(t => `<option ${f.tipo===t?'selected':''}>${t}</option>`).join('')}</select></div>
+    <div class="form-row">
+      <div class="form-group"><label><input type="checkbox" id="fpTroco" ${f.permite_troco?'checked':''}> Permite Troco</label></div>
+      <div class="form-group"><label><input type="checkbox" id="fpParcela" ${f.permite_parcelamento?'checked':''}> Permite Parcelamento</label></div>
+    </div>
+    <div class="form-group"><label>Taxa (%)</label><input class="form-control" id="fpTaxa" value="${f.taxa_percentual}" onblur="fmtPorcentagem(this)"></div>
+    <div class="form-group"><label><input type="checkbox" id="fpAtivo" ${f.ativo?'checked':''}> Ativo</label></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="salvarFormaPag(${id||''})">Salvar</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+};
+
+window.salvarFormaPag = async function(id) {
+  const body = {
+    descricao: document.getElementById('fpDesc').value.trim(),
+    tipo: document.getElementById('fpTipo').value,
+    permite_troco: document.getElementById('fpTroco').checked,
+    permite_parcelamento: document.getElementById('fpParcela').checked,
+    taxa_percentual: parseFloat(document.getElementById('fpTaxa').value.replace(',','.')) || 0,
+    ativo: document.getElementById('fpAtivo').checked
+  };
+  if (!body.descricao) { toast('Descricao obrigatoria', 'warning'); return; }
+  try {
+    if (id) await API.put('/formas-pagamento/' + id, body);
+    else await API.post('/formas-pagamento', body);
+    closeModal();
+    renderFormasPagamentoList();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.excluirFormaPag = async function(id) {
+  if (!confirm('Excluir forma de pagamento?')) return;
+  try { await API.del('/formas-pagamento/' + id); renderFormasPagamentoList(); }
+  catch (e) { toast(e.message, 'danger'); }
+};
+
+// ============================================================================
+// VENDEDORES
+// ============================================================================
+
+async function renderVendedores() {
+  setTitle('Vendedores');
+  let html = `
+  <div class="card">
+    <div class="card-title">Vendedores</div>
+    <div class="toolbar"><button class="btn btn-primary" onclick="vendedorForm()">+ Novo</button></div>
+    <table class="table"><thead><tr><th>Nome</th><th>Telefone</th><th>Comissao</th><th>Status</th><th>Acoes</th></tr></thead>
+    <tbody id="vendTbody"></tbody></table>
+  </div>`;
+  contentBody.innerHTML = html;
+  await renderVendedoresList();
+}
+
+async function renderVendedoresList() {
+  try {
+    const res = await API.get('/vendedores?limit=50');
+    const tbody = document.getElementById('vendTbody');
+    if (!tbody) return;
+    if (!res.data.length) { tbody.innerHTML = '<tr><td colspan="5"><div class="empty"><p>Nenhum vendedor</p></div></td></tr>'; return; }
+    tbody.innerHTML = res.data.map(v => `<tr>
+      <td><strong>${escape(v.nome)}</strong></td>
+      <td>${escape(v.telefone||'-')}</td>
+      <td>${v.percentual_comissao}%</td>
+      <td>${v.status === 'Ativo' ? badge('Ativo') : badge('Inativo')}</td>
+      <td>
+        <button class="btn btn-outline btn-sm" onclick="vendedorForm(${v.id})">Editar</button>
+        ${v.status === 'Ativo'
+          ? `<button class="btn btn-warning btn-sm" onclick="inativarVendedor(${v.id})">Inativar</button>`
+          : `<button class="btn btn-success btn-sm" onclick="reativarVendedor(${v.id})">Reativar</button>`}
+      </td>
+    </tr>`).join('');
+  } catch (e) { toast(e.message, 'danger'); }
+}
+
+window.vendedorForm = async function(id) {
+  let v = { nome: '', telefone: '', percentual_comissao: 0 };
+  if (id) {
+    try { const res = await API.get('/vendedores/' + id); v = res.data; }
+    catch (e) { toast(e.message, 'danger'); return; }
+  }
+  openModal(`
+    <h3>${id ? 'Editar' : 'Novo'} Vendedor</h3>
+    <div class="form-group"><label>Nome *</label><input class="form-control" id="vNome" value="${escape(v.nome)}"></div>
+    <div class="form-group"><label>Telefone</label><input class="form-control" id="vTel" value="${escape(v.telefone||'')}"></div>
+    <div class="form-group"><label>Comissao (%)</label><input class="form-control" id="vComissao" value="${v.percentual_comissao}" onblur="fmtPorcentagem(this)"></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="salvarVendedor(${id||''})">Salvar</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+};
+
+window.salvarVendedor = async function(id) {
+  const body = {
+    nome: document.getElementById('vNome').value.trim(),
+    telefone: document.getElementById('vTel').value.trim(),
+    percentual_comissao: parseFloat(document.getElementById('vComissao').value.replace(',','.')) || 0
+  };
+  if (!body.nome) { toast('Nome obrigatorio', 'warning'); return; }
+  try {
+    if (id) await API.put('/vendedores/' + id, body);
+    else await API.post('/vendedores', body);
+    closeModal();
+    renderVendedoresList();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.inativarVendedor = async function(id) {
+  if (!confirm('Inativar vendedor?')) return;
+  try { await API.patch('/vendedores/' + id + '/inativar'); renderVendedoresList(); }
+  catch (e) { toast(e.message, 'danger'); }
+};
+
+window.reativarVendedor = async function(id) {
+  try { await API.patch('/vendedores/' + id + '/reativar'); renderVendedoresList(); }
+  catch (e) { toast(e.message, 'danger'); }
+};
 
 async function renderOrdensList(page = 1, filtros = {}) {
   setTitle('Ordens de Servico');
