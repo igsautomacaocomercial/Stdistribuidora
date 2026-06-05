@@ -33,6 +33,9 @@ app.use('/print', require('./routes/print'));
 // Auth route
 app.use('/api', require('./routes/auth'));
 
+// Usuarios route
+app.use('/api/usuarios', require('./routes/usuarios'));
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

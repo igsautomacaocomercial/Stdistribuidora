@@ -19,6 +19,39 @@ function logout() {
   window.location.href = 'login.html';
 }
 
+// ============================================================================
+// TOAST NOTIFICATIONS
+// ============================================================================
+function toast(message, type) {
+  const container = document.getElementById('toastContainer') || (() => {
+    const c = document.createElement('div');
+    c.id = 'toastContainer';
+    c.style.cssText = 'position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:10px;max-width:400px';
+    document.body.appendChild(c);
+    return c;
+  })();
+
+  const colors = {
+    success: '#2ecc71',
+    danger: '#e74c3c',
+    warning: '#f39c12',
+    info: '#3498db'
+  };
+  const bg = colors[type] || '#333';
+
+  const toast = document.createElement('div');
+  toast.innerHTML = message;
+  toast.style.cssText = `
+    padding:14px 20px;background:${bg};color:#fff;border-radius:10px;
+    font-size:14px;font-weight:500;box-shadow:0 6px 20px rgba(0,0,0,.2);
+    animation:slideInRight .3s ease-out;cursor:pointer;
+    max-width:100%;word-break:break-word
+  `;
+  toast.onclick = () => { toast.style.animation = 'slideOutRight .3s ease-in'; setTimeout(() => toast.remove(), 300); };
+  container.appendChild(toast);
+  setTimeout(() => { if (toast.parentNode) { toast.style.animation = 'slideOutRight .3s ease-in'; setTimeout(() => toast.remove(), 300); } }, 4000);
+}
+
 function setTitle(t) { pageTitle.textContent = t; }
 
 function html(literals, ...vals) {
@@ -91,7 +124,7 @@ function toggleSubmenu(e) {
 function navigate(page, params) {
   document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.toggle('active', a.dataset.page === page));
   // Fecha submenu se pagina for de cadastro
-  if (['clientes','cliente-form','cliente-detail','tecnicos','unidades-medida','grupos-produtos','produtos','servicos'].includes(page)) {
+  if (['clientes','cliente-form','cliente-detail','tecnicos','unidades-medida','grupos-produtos','produtos','servicos','usuarios'].includes(page)) {
     document.querySelector('.has-submenu')?.classList.add('open');
     document.getElementById('submenuCadastros')?.classList.add('open');
   } else {
@@ -127,6 +160,7 @@ async function renderPage(page, params) {
       case 'servicos': await renderServicos(); break;
       case 'tecnicos': await renderTecnicosList(); break;
       case 'emitente': await renderEmitente(); break;
+      case 'usuarios': await renderUsuarios(); break;
       default: contentBody.innerHTML = '<div class="empty"><p>Pagina nao encontrada</p></div>';
     }
   } catch (e) {
@@ -392,12 +426,12 @@ function renderChecklistView(os) {
 
 window.changeStatus = async function(id) {
   const status = $('changeStatusOS').value;
-  if (!status) return alert('Selecione um status');
+  if (!status) return toast('Selecione um status', 'warning');
   if (!confirm(`Alterar status da OS #${id} para "${status}"?`)) return;
   try {
     await API.patch(`/ordens/${id}/status`, { status });
     renderOrdemDetail(id);
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.addItem = async function(osId) {
@@ -494,12 +528,12 @@ window.confirmarAddItem = async function() {
   const tipo = document.getElementById('itemTipo').value;
   const qtd = parseFloat(document.getElementById('itemQtd').value) || 1;
   const valor = parseFloat(document.getElementById('itemValor').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
-  if (!desc) { alert('Selecione um item da lista'); return; }
+  if (!desc) { toast('Selecione um item da lista', 'warning'); return; }
   try {
     await API.post(`/ordens/${window._addItemOsId}/itens`, { descricao: desc, tipo, quantidade: qtd, valor_unitario: valor });
     closeModal();
     window._onModalClose = function() { renderOrdemDetail(window._addItemOsId); };
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.removerItemOS = async function(osId, itemId) {
@@ -507,7 +541,7 @@ window.removerItemOS = async function(osId, itemId) {
   try {
     await API.del(`/ordens/${osId}/itens/${itemId}`);
     renderOrdemDetail(osId);
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.editarLaudo = async function(id) {
@@ -516,7 +550,7 @@ window.editarLaudo = async function(id) {
   try {
     await API.put(`/ordens/${id}`, { laudo_tecnico: laudo });
     renderOrdemDetail(id);
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.editChecklist = async function(id) {
@@ -566,7 +600,7 @@ window.saveChecklist = async function(id) {
     await API.post(`/ordens/${id}/checklist`, data);
     closeModal();
     renderOrdemDetail(id);
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 // ============================================================================
@@ -778,14 +812,14 @@ window.inativarCliente = async function(id) {
   try {
     await API.patch(`/clientes/${id}/inativar`);
     renderClienteDetail(id);
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.reativarCliente = async function(id) {
   try {
     await API.patch(`/clientes/${id}/reativar`);
     renderClienteDetail(id);
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 // ============================================================================
@@ -885,7 +919,7 @@ window.buscarCEP = async function() {
 
 window.buscarCNPJ = async function() {
   const cnpj = $('cli_cpf_cnpj').value.replace(/\D/g, '');
-  if (cnpj.length !== 14) { alert('CNPJ deve ter 14 digitos'); return; }
+  if (cnpj.length !== 14) { toast('CNPJ deve ter 14 digitos', 'warning'); return; }
   try {
     const res = await API.get(`/cnpj/${cnpj}`);
     const d = res.data;
@@ -904,8 +938,8 @@ window.buscarCNPJ = async function() {
     togglePFPJ();
     // Fallback: se CEP existe mas logradouro veio vazio, busca pelo CEP
     if (d.cep && !d.logradouro) buscarCEP();
-    alert('Dados preenchidos automaticamente da Receita Federal!');
-  } catch (e) { alert('Erro ao buscar CNPJ: ' + e.message); }
+    toast('Dados preenchidos automaticamente da Receita Federal!', 'success');
+  } catch (e) { toast('Erro ao buscar CNPJ: ' + e.message, 'danger'); }
 };
 
 window.salvarCliente = async function(editId) {
@@ -1011,7 +1045,7 @@ window.editarTecnico = function(id, nome, especialidade, status) {
 
 window.salvarTecnico = async function(id) {
   const nome = $('tec_nome')?.value;
-  if (!nome) { alert('Nome obrigatorio'); return; }
+  if (!nome) { toast('Nome obrigatorio', 'warning'); return; }
   try {
     if (id) {
       await API.put(`/tecnicos/${id}`, { nome, especialidade: $('tec_especialidade')?.value, status: $('tec_status')?.value });
@@ -1020,7 +1054,7 @@ window.salvarTecnico = async function(id) {
     }
     closeModal();
     renderTecnicosList();
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 // ============================================================================
@@ -1217,7 +1251,7 @@ window.salvarBackupConfig = async function() {
   document.querySelectorAll('#backupHorarios input[type=time]').forEach(input => {
     if (input.value) horarios.push(input.value);
   });
-  if (!horarios.length) { alert('Adicione pelo menos 1 horario'); return; }
+  if (!horarios.length) { toast('Adicione pelo menos 1 horario', 'warning'); return; }
 
   const body = {
     horarios,
@@ -1269,7 +1303,7 @@ async function renderBackupLista() {
 
 window.buscarCNPJEmpresa = async function() {
   const cnpj = $('emp_cnpj').value.replace(/\D/g, '');
-  if (cnpj.length !== 14) { alert('CNPJ deve ter 14 digitos'); return; }
+  if (cnpj.length !== 14) { toast('CNPJ deve ter 14 digitos', 'warning'); return; }
   try {
     const res = await API.get(`/cnpj/${cnpj}`);
     const d = res.data;
@@ -1284,8 +1318,8 @@ window.buscarCNPJEmpresa = async function() {
     $('emp_cep').value = d.cep || '';
     if (d.telefone) $('emp_telefone').value = d.telefone;
     if (d.email) $('emp_email').value = d.email;
-    alert('Dados preenchidos automaticamente da Receita Federal!');
-  } catch (e) { alert('Erro ao buscar CNPJ: ' + e.message + '\nVerifique se o CNPJ digitado esta correto.'); }
+    toast('Dados preenchidos automaticamente da Receita Federal!', 'success');
+  } catch (e) { toast('Erro ao buscar CNPJ: ' + e.message, 'danger'); }
 };
 
 let _logoBase64 = null;
@@ -1457,7 +1491,7 @@ window.uploadFoto = async function(osId, input) {
     input.value = '';
     abrirGaleria(osId);
   } catch (e) {
-    alert('Erro ao salvar foto: ' + e.message);
+    toast('Erro ao salvar foto: ' + e.message, 'danger');
   }
 };
 
@@ -1467,7 +1501,7 @@ window.removerFoto = async function(osId, fotoId) {
     await API.del(`/ordens/${osId}/fotos/${fotoId}`);
     abrirGaleria(osId);
   } catch (e) {
-    alert('Erro ao remover foto: ' + e.message);
+    toast('Erro ao remover foto: ' + e.message, 'danger');
   }
 };
 
@@ -1592,13 +1626,13 @@ window.showModalUnidade = function(id, sigla, descricao) {
 window.salvarUnidade = async function(id) {
   const sigla = document.getElementById('unid_sigla').value.trim();
   const descricao = document.getElementById('unid_desc').value.trim();
-  if (!sigla || !descricao) { alert('Preencha sigla e descricao'); return; }
+  if (!sigla || !descricao) { toast('Preencha sigla e descricao', 'warning'); return; }
   try {
     if (id) { await API.put('/unidades-medida/' + id, { sigla, descricao }); }
     else { await API.post('/unidades-medida', { sigla, descricao }); }
     closeModal();
     renderUnidadesMedida();
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.excluirUnidade = async function(id) {
@@ -1606,7 +1640,7 @@ window.excluirUnidade = async function(id) {
   try {
     await API.del('/unidades-medida/' + id);
     renderUnidadesMedida();
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 // ============================================================================
@@ -1691,24 +1725,24 @@ window.showModalGrupo = function(id, nome) {
 
 window.salvarGrupo = async function(id) {
   const nome = document.getElementById('grupo_nome').value.trim();
-  if (!nome) { alert('Preencha o nome do grupo'); return; }
+  if (!nome) { toast('Preencha o nome do grupo', 'warning'); return; }
   try {
     if (id) { await API.put('/grupos-produtos/' + id, { nome }); }
     else { await API.post('/grupos-produtos', { nome }); }
     closeModal();
     renderGruposProdutos();
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.inativarGrupo = async function(id) {
   if (!confirm('Inativar este grupo?')) return;
   try { await API.patch('/grupos-produtos/' + id + '/inativar'); renderGruposProdutos(); }
-  catch (e) { alert('Erro: ' + e.message); }
+  catch (e) { toast(e.message, 'danger'); }
 };
 
 window.reativarGrupo = async function(id) {
   try { await API.patch('/grupos-produtos/' + id + '/reativar'); renderGruposProdutos(); }
-  catch (e) { alert('Erro: ' + e.message); }
+  catch (e) { toast(e.message, 'danger'); }
 };
 
 // ============================================================================
@@ -1885,24 +1919,24 @@ window.salvarProduto = async function(id) {
     ncm: document.getElementById('prod_ncm').value.trim() || null,
     cest: document.getElementById('prod_cest').value.trim() || null
   };
-  if (!body.descricao) { alert('Descricao obrigatoria'); return; }
+  if (!body.descricao) { toast('Descricao obrigatoria', 'warning'); return; }
   try {
     if (id) { await API.put('/produtos/' + id, body); }
     else { await API.post('/produtos', body); }
     closeModal();
     renderProdutos();
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.inativarProduto = async function(id) {
   if (!confirm('Inativar este produto?')) return;
   try { await API.patch('/produtos/' + id + '/inativar'); renderProdutos(); }
-  catch (e) { alert('Erro: ' + e.message); }
+  catch (e) { toast(e.message, 'danger'); }
 };
 
 window.reativarProduto = async function(id) {
   try { await API.patch('/produtos/' + id + '/reativar'); renderProdutos(); }
-  catch (e) { alert('Erro: ' + e.message); }
+  catch (e) { toast(e.message, 'danger'); }
 };
 
 // ============================================================================
@@ -2011,24 +2045,146 @@ window.salvarServico = async function(id) {
     comissao_tecnico: parseFloat(document.getElementById('serv_comissao').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0,
     tempo_estimado: document.getElementById('serv_tempo').value.trim() || null
   };
-  if (!body.nome_servico) { alert('Nome do servico obrigatorio'); return; }
+  if (!body.nome_servico) { toast('Nome do servico obrigatorio', 'warning'); return; }
   try {
     if (id) { await API.put('/servicos/' + id, body); }
     else { await API.post('/servicos', body); }
     closeModal();
     renderServicos();
-  } catch (e) { alert('Erro: ' + e.message); }
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.inativarServico = async function(id) {
   if (!confirm('Inativar este servico?')) return;
-  try { await API.patch('/servicos/' + id + '/inativar'); renderServicos(); }
-  catch (e) { alert('Erro: ' + e.message); }
+  try { await API.patch('/servicos/' + id + '/inativar'); toast('Servico inativado', 'success'); renderServicos(); }
+  catch (e) { toast(e.message, 'danger'); }
 };
 
 window.reativarServico = async function(id) {
-  try { await API.patch('/servicos/' + id + '/reativar'); renderServicos(); }
-  catch (e) { alert('Erro: ' + e.message); }
+  try { await API.patch('/servicos/' + id + '/reativar'); toast('Servico reativado', 'success'); renderServicos(); }
+  catch (e) { toast(e.message, 'danger'); }
+};
+
+// ============================================================================
+// USUARIOS
+// ============================================================================
+
+async function renderUsuarios() {
+  setTitle('Usuarios');
+  let html = `
+  <div class="card">
+    <div class="card-title">Gerenciar Usuarios</div>
+    <div class="toolbar">
+      <button class="btn btn-primary" onclick="usuarioForm()">+ Novo Usuario</button>
+    </div>
+    <table class="table">
+      <thead><tr>
+        <th>Nome</th>
+        <th>Tipo</th>
+        <th>Status</th>
+        <th>Acoes</th>
+      </tr></thead>
+      <tbody id="usuariosTbody"></tbody>
+    </table>
+  </div>`;
+  contentBody.innerHTML = html;
+  await renderUsuariosList();
+}
+
+async function renderUsuariosList() {
+  try {
+    const res = await API.get('/usuarios');
+    const tbody = document.getElementById('usuariosTbody');
+    if (!tbody) return;
+    if (!res.data.length) {
+      tbody.innerHTML = '<tr><td colspan="4"><div class="empty"><p>Nenhum usuario cadastrado</p></div></td></tr>';
+      return;
+    }
+    const tipoLabel = { admin: 'Admin', supervisor: 'Supervisor', operador: 'Operador', tecnico: 'Tecnico', vendedor: 'Vendedor', ambos: 'Tecnico/Vendedor' };
+    tbody.innerHTML = res.data.map(u => `
+      <tr>
+        <td><strong>${escape(u.nome)}</strong></td>
+        <td>${tipoLabel[u.tipo] || u.tipo}</td>
+        <td>${u.ativo ? badge('Ativo') : badge('Inativo')}</td>
+        <td>
+          <button class="btn btn-outline btn-sm" onclick="usuarioForm(${u.id})">Editar</button>
+          <button class="btn btn-outline btn-sm" onclick="toggleUsuarioStatus(${u.id}, ${u.ativo})">${u.ativo ? 'Inativar' : 'Reativar'}</button>
+          <button class="btn btn-outline btn-sm btn-danger" onclick="deletarUsuario(${u.id})">Excluir</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) { toast(e.message, 'danger'); }
+}
+
+window.usuarioForm = async function(id) {
+  let u = { nome: '', tipo: 'operador' };
+  if (id) {
+    try {
+      const res = await API.get('/usuarios');
+      u = res.data.find(x => x.id === id) || u;
+    } catch (e) { toast(e.message, 'danger'); return; }
+  }
+  const tipoLabel = { admin: 'Admin', supervisor: 'Supervisor', operador: 'Operador', tecnico: 'Tecnico', vendedor: 'Vendedor', ambos: 'Tecnico/Vendedor' };
+  const tipos = ['operador', 'tecnico', 'vendedor', 'ambos'];
+  openModal(`
+    <h3>${id ? 'Editar' : 'Novo'} Usuario</h3>
+    <div class="form-group">
+      <label>Nome *</label>
+      <input class="form-control" id="usr_nome" value="${escape(u.nome)}">
+    </div>
+    <div class="form-group">
+      <label>Senha ${id ? '(deixe em branco para manter)' : '*'} </label>
+      <input class="form-control" id="usr_senha" type="password">
+    </div>
+    <div class="form-group">
+      <label>Tipo</label>
+      <select class="form-control" id="usr_tipo">
+        ${tipos.map(t => `<option value="${t}" ${u.tipo === t ? 'selected' : ''}>${tipoLabel[t]}</option>`).join('')}
+      </select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px;">
+      <button class="btn btn-primary" onclick="salvarUsuario(${id || ''})">Salvar</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    </div>
+  `);
+};
+
+window.salvarUsuario = async function(id) {
+  const nome = $('usr_nome').value.trim();
+  const senha = $('usr_senha').value;
+  const tipo = $('usr_tipo').value;
+  if (!nome) { toast('Nome obrigatorio', 'warning'); return; }
+  if (!id && !senha) { toast('Senha obrigatoria para novo usuario', 'warning'); return; }
+  try {
+    if (id) {
+      const body = { nome, tipo };
+      if (senha) body.senha = senha;
+      await API.put('/usuarios/' + id, body);
+      toast('Usuario atualizado', 'success');
+    } else {
+      await API.post('/usuarios', { nome, senha, tipo });
+      toast('Usuario criado', 'success');
+    }
+    closeModal();
+    renderUsuariosList();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.toggleUsuarioStatus = async function(id, ativo) {
+  try {
+    await API.put('/usuarios/' + id, { ativo: !ativo });
+    toast(ativo ? 'Usuario inativado' : 'Usuario reativado', 'success');
+    renderUsuariosList();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.deletarUsuario = async function(id) {
+  if (!confirm('Excluir permanentemente este usuario?')) return;
+  try {
+    await API.del('/usuarios/' + id);
+    toast('Usuario excluido', 'success');
+    renderUsuariosList();
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 // ============================================================================
