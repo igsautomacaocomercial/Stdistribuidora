@@ -1312,7 +1312,7 @@ async function renderOrdemDetail(id) {
       <p>Localizacao: ${escape(os.localizacao||'-')}</p>
       <p>Data Entrada: ${fmtDate(os.data_entrada)}</p>
       <p>Data Saida: ${os.data_saida ? fmtDate(os.data_saida) : '-'}</p>
-      <div style="margin-top:8px;"><button class="btn btn-outline btn-sm no-print" onclick="abrirGaleria(${id})">Fotos (${os.fotos ? os.fotos.length : 0}/5)</button></div>
+      <div style="margin-top:10px;"><button class="btn btn-outline btn-sm no-print" onclick="abrirGaleria(${id})" style="border:2px solid #e67e22;background:#fff8f0;font-weight:700;color:#e67e22;padding:6px 16px;border-radius:6px;width:100%;font-size:13px;">&#128247; Fotos (${os.fotos ? os.fotos.length : 0}/5)</button></div>
     </div>
   </div>
 
