@@ -7,82 +7,123 @@
 <style>
 /* Print-specific styles */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 9px; color: #000; background: #fff; }
+body { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 11px; color: #000; background: #fff; }
 
-@page { size: A4 portrait; margin: 3mm 5mm 3mm 5mm; }
+@page { size: A4 portrait; margin: 5mm 8mm 5mm 8mm; }
 
 @media print {
   .no-print { display: none !important; }
-  .os-page { box-shadow: none; border: 1px solid #000 !important; }
+  .os-page { box-shadow: none; border: 1px solid #000 !important; page-break-after: auto; }
   .section { page-break-inside: avoid; }
-  body { font-size: 9px; }
+  body { font-size: 8px; }
+
+  .os-page { max-width: 100%; width: 100%; padding: 3px 4px; overflow: hidden; }
+  .os-page table { table-layout: fixed; word-wrap: break-word; font-size: 7px; }
+
+  .os-header { border-bottom-width: 1px; padding-bottom: 2px; margin-bottom: 2px; }
+  .os-header .logo { width: 38px; height: 38px; margin-right: 4px; font-size: 5px; }
+  .os-header .header-info h1 { font-size: 10px; letter-spacing: 0.2px; }
+  .os-header .header-info .sub { font-size: 6px; }
+  .os-header .os-number { border-left-width: 1px; padding-left: 4px; min-width: 65px; }
+  .os-header .os-number .label { font-size: 5px; }
+  .os-header .os-number .value { font-size: 14px; }
+
+  .section { border-width: 1px; margin-bottom: 1px; }
+  .section-title { font-size: 6px; padding: 1px 3px; letter-spacing: 0.1px; }
+  .section-body { padding: 1px 3px; }
+  .field-row { gap: 4px; margin-bottom: 0; }
+  .field { gap: 1px; }
+  .field .label { font-size: 6px; }
+  .field .value { min-width: 25px; padding: 0 2px; font-size: 7px; border-bottom-width: 1px; }
+  .field .value-full { padding: 0 2px; font-size: 7px; border-bottom-width: 1px; }
+
+  .checklist-grid td, .checklist-grid th { padding: 1px 3px; font-size: 7px; border-width: 1px; }
+  .checklist-grid th { font-size: 6px; }
+  .checklist-grid .check-cell { font-size: 8px; width: 16px; }
+  .checklist-grid .obs-cell { padding: 1px 3px; font-size: 7px; }
+  .checklist-grid td[colspan] table { font-size: 7px; }
+  .checklist-grid td[colspan] td { font-size: 7px; }
+
+  .chassis-grid { gap: 2px; margin-top: 1px; }
+  .chassis-item { border-width: 1px; padding: 1px; }
+  .chassis-item .chassis-label { font-size: 6px; margin-bottom: 0; }
+  .chassis-item svg { max-height: 55px; }
+  .chassis-item .chassis-notes { font-size: 5px; margin-top: 1px; padding-top: 1px; min-height: 8px; }
+  .chassis-item .chassis-notes:last-child { margin-top: 1px; }
+
+  .obs-field .obs-content { min-height: 25px; padding: 1px 3px; line-height: 13px; font-size: 7px; border-width: 1px; }
+
+  .os-footer { margin-top: 2px; border-top-width: 1px; padding-top: 1px; gap: 2px; }
+  .signature-block .sig-line { margin-top: 10px; padding-top: 1px; font-size: 5px; border-top-width: 1px; }
+  .os-footer .terms { font-size: 5px; margin-top: 0; line-height: 1; }
+
+  .text-small { font-size: 6px; }
 }
 
 .os-page {
-  width: 100%; max-width: 100%; margin: 0 auto;
-  border: 1px solid #000; padding: 4px 5px; background: #fff; box-sizing: border-box;
-  overflow: hidden;
+  width: 210mm; max-width: 100%; margin: 0 auto;
+  border: 2px solid #000; padding: 8px 10px; background: #fff;
 }
-.os-page table { table-layout: fixed; word-wrap: break-word; }
+.os-page table { border-collapse: collapse; }
 
 /* Header */
 .os-header {
-  display: flex; align-items: center; border-bottom: 1px solid #000;
-  padding-bottom: 3px; margin-bottom: 3px;
+  display: flex; align-items: center; border-bottom: 2px solid #000;
+  padding-bottom: 6px; margin-bottom: 6px;
 }
 .os-header .logo {
-  width: 45px; height: 45px; border: 1px solid #000;
+  width: 70px; height: 70px; border: 1px solid #000;
   display: flex; align-items: center; justify-content: center;
-  margin-right: 6px; font-size: 6px; text-align: center; overflow: hidden; flex-shrink: 0;
+  margin-right: 10px; font-size: 8px; text-align: center; overflow: hidden;
 }
 .os-header .logo img { max-width: 100%; max-height: 100%; }
 .os-header .header-info { flex: 1; }
-.os-header .header-info h1 { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px; }
-.os-header .header-info .sub { font-size: 7px; margin-top: 0; }
-.os-header .os-number { text-align: right; border-left: 1px solid #000; padding-left: 6px; min-width: 80px; }
-.os-header .os-number .label { font-size: 6px; text-transform: uppercase; }
-.os-header .os-number .value { font-size: 16px; font-weight: bold; }
+.os-header .header-info h1 { font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+.os-header .header-info .sub { font-size: 9px; margin-top: 2px; }
+.os-header .os-number { text-align: right; border-left: 2px solid #000; padding-left: 10px; min-width: 110px; }
+.os-header .os-number .label { font-size: 8px; text-transform: uppercase; }
+.os-header .os-number .value { font-size: 22px; font-weight: bold; }
 
 /* Sections */
-.section { border: 1px solid #000; margin-bottom: 2px; }
-.section-title { font-weight: bold; text-transform: uppercase; font-size: 7px; background: #000; color: #fff; padding: 1px 4px; letter-spacing: 0.2px; }
-.section-body { padding: 2px 4px; }
-.field-row { display: flex; gap: 6px; margin-bottom: 1px; align-items: baseline; }
+.section { border: 1.5px solid #000; margin-bottom: 5px; }
+.section-title { font-weight: bold; text-transform: uppercase; font-size: 9px; background: #000; color: #fff; padding: 2px 6px; letter-spacing: 0.5px; }
+.section-body { padding: 4px 6px; }
+.field-row { display: flex; gap: 8px; margin-bottom: 2px; align-items: baseline; }
 .field-row:last-child { margin-bottom: 0; }
-.field { display: flex; align-items: baseline; gap: 2px; flex: 1; }
-.field .label { font-weight: bold; font-size: 7px; text-transform: uppercase; white-space: nowrap; }
-.field .value { border-bottom: 1px solid #000; min-width: 35px; padding: 0 3px; font-size: 9px; flex: 1; }
-.field .value-full { border-bottom: 1px solid #000; padding: 0 3px; font-size: 9px; flex: 1; }
+.field { display: flex; align-items: baseline; gap: 3px; flex: 1; }
+.field .label { font-weight: bold; font-size: 8px; text-transform: uppercase; white-space: nowrap; }
+.field .value { border-bottom: 1px solid #000; min-width: 40px; padding: 0 4px; font-size: 10px; flex: 1; }
+.field .value-full { border-bottom: 1px solid #000; padding: 0 4px; font-size: 10px; flex: 1; }
 
 /* Checklist table */
 .checklist-grid { width: 100%; border-collapse: collapse; }
-.checklist-grid td, .checklist-grid th { border: 1px solid #000; padding: 1px 4px; font-size: 8px; text-align: left; vertical-align: middle; }
-.checklist-grid th { background: #e0e0e0; font-weight: bold; text-transform: uppercase; font-size: 7px; text-align: center; }
+.checklist-grid td, .checklist-grid th { border: 1px solid #000; padding: 2px 5px; font-size: 9px; text-align: left; vertical-align: middle; }
+.checklist-grid th { background: #e0e0e0; font-weight: bold; text-transform: uppercase; font-size: 8px; text-align: center; }
 .checklist-grid .item-label { font-weight: bold; }
-.checklist-grid .check-cell { text-align: center; font-weight: bold; font-size: 10px; width: 20px; }
+.checklist-grid .check-cell { text-align: center; font-weight: bold; font-size: 11px; width: 25px; }
 .check-yes { color: #000; }
 .check-no { color: #999; }
-.checklist-grid .obs-cell { padding: 1px 4px; font-size: 8px; }
+.checklist-grid .obs-cell { padding: 2px 5px; font-size: 9px; }
 
 /* Chassis SVG section */
-.chassis-grid { display: flex; gap: 4px; margin-top: 2px; }
-.chassis-item { border: 1.5px solid #000; padding: 2px; flex: 1; text-align: center; }
-.chassis-item .chassis-label { font-weight: bold; font-size: 7px; text-transform: uppercase; margin-bottom: 1px; }
-.chassis-item svg { display: block; margin: 0 auto; max-height: 70px; width: 100%; }
-.chassis-item .chassis-notes { font-size: 6px; margin-top: 2px; border-top: 1px dashed #000; padding-top: 2px; min-height: 12px; text-align: left; }
+.chassis-grid { display: flex; gap: 8px; margin-top: 4px; }
+.chassis-item { border: 1.5px solid #000; padding: 4px; flex: 1; text-align: center; }
+.chassis-item .chassis-label { font-weight: bold; font-size: 8px; text-transform: uppercase; margin-bottom: 3px; }
+.chassis-item svg { display: block; margin: 0 auto; }
+.chassis-item .chassis-notes { font-size: 7px; margin-top: 3px; border-top: 1px dashed #000; padding-top: 3px; min-height: 16px; text-align: left; }
 
 /* OBS field */
 .obs-field .obs-content {
-  min-height: 40px; padding: 2px 5px;
-  background-image: repeating-linear-gradient(transparent, transparent 14px, #000 14px, #000 15px);
-  line-height: 15px; font-size: 9px; border: 1px solid #000;
+  min-height: 60px; padding: 4px 6px;
+  background-image: repeating-linear-gradient(transparent, transparent 16px, #000 16px, #000 17px);
+  line-height: 17px; font-size: 10px; border: 1px solid #000;
 }
 
 /* Footer */
-.os-footer { margin-top: 3px; border-top: 1px solid #000; padding-top: 2px; display: flex; justify-content: space-between; gap: 4px; }
+.os-footer { margin-top: 6px; border-top: 2px solid #000; padding-top: 5px; display: flex; justify-content: space-between; gap: 10px; }
 .signature-block { flex: 1; text-align: center; }
-.signature-block .sig-line { border-top: 1px solid #000; margin-top: 14px; padding-top: 1px; font-size: 6px; text-transform: uppercase; }
-.os-footer .terms { font-size: 5px; text-align: justify; margin-top: 1px; line-height: 1; }
+.signature-block .sig-line { border-top: 1px solid #000; margin-top: 25px; padding-top: 3px; font-size: 8px; text-transform: uppercase; }
+.os-footer .terms { font-size: 7px; text-align: justify; margin-top: 3px; line-height: 1.2; }
 
 .flex { display: flex; }
 .flex-1 { flex: 1; }
