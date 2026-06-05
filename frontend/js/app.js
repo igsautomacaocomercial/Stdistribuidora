@@ -183,8 +183,12 @@ async function renderPage(page, params) {
 
 async function renderDashboard() {
   setTitle('Dashboard');
-  const res = await API.get('/dashboard');
+  const [res, chartsRes] = await Promise.all([
+    API.get('/dashboard'),
+    API.get('/dashboard/charts')
+  ]);
   const d = res.data;
+  const c = chartsRes.data;
 
   let html = `
   <div class="metrics">
@@ -192,32 +196,114 @@ async function renderDashboard() {
     <div class="metric yellow"><div class="label">Em Orcamento</div><div class="value">${d.resumo.os_em_orcamento}</div></div>
     <div class="metric pink"><div class="label">Em Manutencao</div><div class="value">${d.resumo.os_em_manutencao}</div></div>
     <div class="metric green"><div class="label">Prontas Retirada</div><div class="value">${d.resumo.os_prontas_retirar}</div></div>
-    <div class="metric blue"><div class="label">Clientes Ativos</div><div class="value">${d.resumo.clientes_ativos}</div></div>
-    <div class="metric blue"><div class="label">Tecnicos Ativos</div><div class="value">${d.resumo.tecnicos_ativos}</div></div>
-  </div>`;
+    <div class="metric purple"><div class="label">Clientes Ativos</div><div class="value">${d.resumo.clientes_ativos}</div></div>
+    <div class="metric orange"><div class="label">Tecnicos Ativos</div><div class="value">${d.resumo.tecnicos_ativos}</div></div>
+  </div>
 
-  // Status geral
-  html += `<div class="card"><div class="card-title">Status das OS</div><div class="table-wrap"><table><tr><th>Status</th><th>Qtd</th><th>Valor</th><th>%</th></tr>`;
-  d.status_geral.forEach(s => {
-    html += `<tr><td>${badge(s.status)}</td><td><strong>${s.quantidade}</strong></td><td>R$ ${(+s.valor_total_acumulado).toFixed(2)}</td><td>${s.status === 'Cancelado' || s.status === 'Finalizado' ? '-' : ''}</td></tr>`;
-  });
-  html += `</table></div></div>`;
+  <div class="dashboard-charts">`;
 
-  // Servicos mais recorrentes
-  html += `<div class="card"><div class="card-title">Servicos Mais Recorrentes</div><div class="table-wrap"><table><tr><th>Servico</th><th>Tipo</th><th>Vezes</th><th>Receita</th></tr>`;
+  // Linha 1: Faturamento Mensal + Status OS
+  html += '<div class="chart-row"><div class="chart-card"><div class="card-title">Faturamento Mensal</div><canvas id="chartFaturamento"></canvas></div>';
+  html += '<div class="chart-card"><div class="card-title">Status das OS</div><canvas id="chartStatusOS"></canvas></div></div>';
+
+  // Linha 2: Produtos mais vendidos + Pagamentos
+  html += '<div class="chart-row"><div class="chart-card"><div class="card-title">Produtos Mais Vendidos</div><canvas id="chartProdutos"></canvas></div>';
+  html += '<div class="chart-card"><div class="card-title">Vendas por Forma de Pagamento</div><canvas id="chartPagamento"></canvas></div></div>';
+
+  // Linha 3: Vendas por Vendedor + Produtos por Grupo
+  html += '<div class="chart-row"><div class="chart-card"><div class="card-title">Vendas por Vendedor</div><canvas id="chartVendedor"></canvas></div>';
+  html += '<div class="chart-card"><div class="card-title">Produtos por Grupo</div><canvas id="chartGrupo"></canvas></div></div>';
+
+  html += '</div>';
+
+  // Tabelas abaixo
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:16px;">';
+
+  html += '<div class="card"><div class="card-title">Servicos Mais Recorrentes</div><div class="table-wrap"><table><tr><th>Servico</th><th>Tipo</th><th>Vezes</th><th>Receita</th></tr>';
   d.servicos_top.forEach(s => {
     html += `<tr><td>${escape(s.descricao)}</td><td>${badge(s.tipo)}</td><td>${s.vezes_realizado}</td><td>R$ ${(+s.receita_gerada).toFixed(2)}</td></tr>`;
   });
-  html += `</table></div></div>`;
+  html += '</table></div></div>';
 
-  // Tecnicos top
-  html += `<div class="card"><div class="card-title">Produtividade por Tecnico</div><div class="table-wrap"><table><tr><th>Tecnico</th><th>OS Finalizadas</th><th>Valor Gerado</th><th>Ticket Medio</th></tr>`;
+  html += '<div class="card"><div class="card-title">Produtividade por Tecnico</div><div class="table-wrap"><table><tr><th>Tecnico</th><th>OS Finalizadas</th><th>Valor Gerado</th><th>Ticket Medio</th></tr>';
   d.tecnicos_top.forEach(t => {
     html += `<tr><td><strong>${escape(t.tecnico)}</strong></td><td>${t.total_os_finalizadas}</td><td>R$ ${(+t.valor_total_gerado).toFixed(2)}</td><td>R$ ${(+t.ticket_medio_tecnico).toFixed(2)}</td></tr>`;
   });
-  html += `</table></div></div>`;
+  html += '</table></div></div>';
+
+  html += '</div>';
 
   contentBody.innerHTML = html;
+
+  // Renderizar graficos apos DOM pronto
+  renderDashboardCharts(d, c);
+}
+
+function renderDashboardCharts(d, c) {
+  const colors = ['#3498db','#e74c3c','#2ecc71','#f39c12','#9b59b6','#1abc9c','#e67e22','#34495e','#16a085','#c0392b','#2980b9','#8e44ad','#d35400','#27ae60','#2c3e50'];
+
+  // Faturamento Mensal (barra)
+  const fat = c.faturamento_mensal || [];
+  new Chart(document.getElementById('chartFaturamento'), {
+    type: 'bar', data: {
+      labels: fat.map(f => f.mes_ano || f.ano_mes),
+      datasets: [{ label: 'Faturamento', data: fat.map(f => +f.faturamento_total), backgroundColor: colors.slice(0, fat.length), borderRadius: 4 }]
+    },
+    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + (+v).toFixed(0) } } } }
+  });
+
+  // Status OS (pizza)
+  const stats = d.status_geral || [];
+  new Chart(document.getElementById('chartStatusOS'), {
+    type: 'doughnut', data: {
+      labels: stats.map(s => s.status),
+      datasets: [{ data: stats.map(s => +s.quantidade), backgroundColor: ['#f39c12','#3498db','#e67e22','#e74c3c','#2ecc71','#27ae60','#95a5a6'] }]
+    },
+    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+  });
+
+  // Produtos Mais Vendidos (barra horizontal)
+  const prods = c.produtos_mais_vendidos || [];
+  new Chart(document.getElementById('chartProdutos'), {
+    type: 'bar', data: {
+      labels: prods.map(p => p.descricao.length > 20 ? p.descricao.substring(0,20)+'...' : p.descricao),
+      datasets: [{ label: 'Qtd Vendida', data: prods.map(p => +p.qtd), backgroundColor: '#3498db', borderRadius: 4 }]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } } }
+  });
+
+  // Vendas por Forma de Pagamento (pizza)
+  const pags = c.vendas_por_pagamento || [];
+  new Chart(document.getElementById('chartPagamento'), {
+    type: 'doughnut', data: {
+      labels: pags.map(p => p.descricao),
+      datasets: [{ data: pags.map(p => +p.total), backgroundColor: colors.slice(0, pags.length) }]
+    },
+    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } },
+      tooltips: { callbacks: { label: (t,i) => i.dataset.data[t.index] } } }
+  });
+
+  // Vendas por Vendedor (barra)
+  const vends = c.vendas_por_vendedor || [];
+  new Chart(document.getElementById('chartVendedor'), {
+    type: 'bar', data: {
+      labels: vends.map(v => v.nome),
+      datasets: [{ label: 'Total Vendido', data: vends.map(v => +v.total), backgroundColor: '#2ecc71', borderRadius: 4 }]
+    },
+    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } },
+      scales: { y: { beginAtZero: true, ticks: { callback: v => 'R$ ' + (+v).toFixed(0) } } } }
+  });
+
+  // Produtos por Grupo (pizza)
+  const grupos = c.produtos_por_grupo || [];
+  new Chart(document.getElementById('chartGrupo'), {
+    type: 'pie', data: {
+      labels: grupos.map(g => g.grupo || 'Sem grupo'),
+      datasets: [{ data: grupos.map(g => +g.qtd), backgroundColor: colors.slice(0, grupos.length) }]
+    },
+    options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+  });
 }
 
 // ============================================================================

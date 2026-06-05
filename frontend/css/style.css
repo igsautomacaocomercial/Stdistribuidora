@@ -425,6 +425,17 @@ textarea.form-control { resize: vertical; min-height: 60px; }
 .pagamento-item { display:flex; justify-content:space-between; align-items:center; padding:8px; border-bottom:1px solid var(--border); }
 .pagamento-item:last-child { border-bottom:none; }
 
+/* Dashboard Charts */
+.dashboard-charts { display:flex; flex-direction:column; gap:16px; margin-top:16px; }
+.chart-row { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+.chart-card { background:var(--card); border:1px solid var(--border); border-radius:8px; padding:12px; }
+.chart-card .card-title { padding:0 0 8px 0; margin-bottom:8px; border-bottom:1px solid var(--border); font-size:13px; }
+.chart-card canvas { max-height:220px; width:100% !important; }
+
+/* Metric colors */
+.metric.purple { background:linear-gradient(135deg,#9b59b6,#8e44ad); }
+.metric.orange { background:linear-gradient(135deg,#e67e22,#d35400); }
+
 /* Toast animations */
 @keyframes slideInRight {
   from { transform: translateX(120%); opacity: 0; }
