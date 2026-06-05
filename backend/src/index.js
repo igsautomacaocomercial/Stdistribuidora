@@ -30,6 +30,9 @@ app.use('/api/servicos', require('./routes/servicos'));
 // Print route (HTML page)
 app.use('/print', require('./routes/print'));
 
+// Orcamentos route
+app.use('/api/orcamentos', require('./routes/orcamentos'));
+
 // Auth route
 app.use('/api', require('./routes/auth'));
 

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Orcamento - ST Distribuidora</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 9px; color: #000; background: #fff; }
+
+@page { size: A4 portrait; margin: 5mm 8mm 5mm 8mm; }
+
+@media print {
+  .no-print { display: none !important; }
+  .orc-page { box-shadow: none; border: 1px solid #000 !important; }
+  .section { page-break-inside: avoid; }
+  body { font-size: 8px; }
+  .orc-page { max-width: 100%; width: 100%; padding: 3px 4px; overflow: hidden; }
+  .orc-page table { table-layout: fixed; word-wrap: break-word; font-size: 7px; }
+}
+
+.orc-page {
+  width: 100%; max-width: 210mm; margin: 0 auto;
+  border: 2px solid #000; padding: 8px 10px; background: #fff;
+}
+
+/* Header */
+.orc-header {
+  display: flex; align-items: center; border-bottom: 2px solid #000;
+  padding-bottom: 6px; margin-bottom: 6px;
+}
+.orc-header .logo {
+  width: 70px; height: 70px; border: 1px solid #000;
+  display: flex; align-items: center; justify-content: center;
+  margin-right: 10px; font-size: 8px; text-align: center; overflow: hidden;
+}
+.orc-header .logo img { max-width: 100%; max-height: 100%; }
+.orc-header .header-info { flex: 1; }
+.orc-header .header-info h1 { font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+.orc-header .header-info .sub { font-size: 8px; margin-top: 2px; }
+.orc-header .orc-number { text-align: right; border-left: 2px solid #000; padding-left: 10px; min-width: 110px; }
+.orc-header .orc-number .label { font-size: 7px; text-transform: uppercase; }
+.orc-header .orc-number .value { font-size: 20px; font-weight: bold; }
+
+.section { border: 1.5px solid #000; margin-bottom: 5px; }
+.section-title { font-weight: bold; text-transform: uppercase; font-size: 9px; background: #000; color: #fff; padding: 2px 6px; letter-spacing: 0.5px; }
+.section-body { padding: 4px 6px; }
+
+.field-row { display: flex; gap: 8px; margin-bottom: 2px; }
+.field { display: flex; align-items: baseline; gap: 3px; flex: 1; }
+.field .label { font-weight: bold; font-size: 8px; text-transform: uppercase; white-space: nowrap; }
+.field .value { border-bottom: 1px solid #000; min-width: 40px; padding: 0 4px; font-size: 10px; flex: 1; }
+.field .value-full { border-bottom: 1px solid #000; padding: 0 4px; font-size: 10px; flex: 1; }
+
+.print-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.print-table td, .print-table th { border: 1px solid #000; padding: 2px 5px; font-size: 9px; text-align: left; vertical-align: middle; }
+.print-table th { background: #e0e0e0; font-weight: bold; text-transform: uppercase; font-size: 8px; text-align: center; }
+
+.obs-content {
+  min-height: 40px; padding: 4px 6px;
+  background-image: repeating-linear-gradient(transparent, transparent 16px, #000 16px, #000 17px);
+  line-height: 17px; font-size: 10px; border: 1px solid #000;
+}
+
+.orc-footer { margin-top: 8px; border-top: 2px solid #000; padding-top: 5px; display: flex; justify-content: space-between; gap: 10px; }
+.signature-block { flex: 1; text-align: center; }
+.signature-block .sig-line { border-top: 1px solid #000; margin-top: 30px; padding-top: 3px; font-size: 8px; text-transform: uppercase; }
+
+.text-right { text-align: right; }
+.text-center { text-align: center; }
+.validade-msg { font-size: 7px; text-align: center; margin-top: 4px; font-style: italic; }
+</style>
+</head>
+<body>
+
+<div class="no-print" style="margin:20px;text-align:center;font-family:sans-serif;">
+  <button class="btn btn-primary" onclick="window.print()" style="padding:12px 40px;font-size:16px;cursor:pointer;">Imprimir Orcamento</button>
+  <p style="margin-top:10px;font-size:12px;">Carregando orcamento #<span id="loadingOrcNum">...</span></p>
+</div>
+
+<div class="orc-page" id="orcPage">
+  <div class="loading"><div class="spinner"></div><p>Carregando orcamento...</p></div>
+</div>
+
+<script>
+async function carregarOrcamento() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) { document.getElementById('orcPage').innerHTML = '<p style="padding:40px;text-align:center;">Parametro "id" nao informado na URL</p>'; return; }
+
+  document.getElementById('loadingOrcNum').textContent = id;
+
+  try {
+    const res = await fetch(`/api/orcamentos/${id}/print`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    renderOrcamento(json.data);
+  } catch (e) {
+    document.getElementById('orcPage').innerHTML = `<p style="padding:40px;text-align:center;">Erro: ${e.message}</p>`;
+  }
+}
+
+function fmtDate(d) { if (!d) return ''; const dt = new Date(d); return dt.toLocaleDateString('pt-BR'); }
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderOrcamento(orc) {
+  const emit = orc.emitente || { razao_social: 'ST Distribuidora de Informatica', cnpj: '', nome_fantasia: '' };
+
+  document.getElementById('loadingOrcNum').textContent = orc.numero_orcamento;
+
+  let html = `
+  <div class="orc-header">
+    <div class="logo">${emit.logotipo ? `<img src="${emit.logotipo}" alt="Logo">` : `<span>LOGO</span>`}</div>
+    <div class="header-info">
+      <h1>${esc(emit.razao_social || 'ST Distribuidora de Informatica')}</h1>
+      <div class="sub">CNPJ: ${esc(emit.cnpj||'')} | ${esc(emit.logradouro||'')}${emit.numero ? ', '+esc(emit.numero):''}${emit.bairro ? ' - '+esc(emit.bairro):''}${emit.cidade ? ' - '+esc(emit.cidade):''}${emit.uf ? '/'+esc(emit.uf):''}${emit.cep ? ' - CEP: '+esc(emit.cep):''}</div>
+      <div class="sub">Tel: ${esc(emit.telefone||'')} | E-mail: ${esc(emit.email||'')}</div>
+    </div>
+    <div class="orc-number">
+      <div class="label">Orcamento N.</div>
+      <div class="value">${orc.numero_orcamento}</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Dados do Cliente</div>
+    <div class="section-body">
+      <div class="field-row">
+        <div class="field" style="flex:2;"><span class="label">Cliente:</span><span class="value-full">${esc(orc.cliente_nome)}</span></div>
+        <div class="field"><span class="label">CPF/CNPJ:</span><span class="value">${esc(orc.cliente_doc||'')}</span></div>
+      </div>
+      <div class="field-row">
+        <div class="field" style="flex:2;"><span class="label">Endereco:</span><span class="value-full">${esc(orc.cliente_logradouro||'')}${orc.cliente_numero ? ', '+esc(orc.cliente_numero) : ''}${orc.cliente_bairro ? ' - '+esc(orc.cliente_bairro) : ''}</span></div>
+        <div class="field"><span class="label">Tel:</span><span class="value">${esc(orc.cliente_telefone||'')}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Dados do Equipamento</div>
+    <div class="section-body">
+      <div class="field-row">
+        <div class="field"><span class="label">Marca:</span><span class="value">${esc(orc.equipamento_marca||'')}</span></div>
+        <div class="field"><span class="label">Modelo:</span><span class="value">${esc(orc.equipamento_modelo||'')}</span></div>
+        <div class="field"><span class="label">N/S:</span><span class="value">${esc(orc.numero_serie||'')}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Defeito Relatado</div>
+    <div class="section-body">
+      <p style="font-size:10px;min-height:20px;">${esc(orc.defeito_relatado||'')}</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Itens do Orcamento</div>
+    <div class="section-body" style="padding:0;">
+      <table class="print-table">
+        <tr><th style="width:5%;">#</th><th style="width:45%;">Descricao</th><th style="width:10%;">Tipo</th><th style="width:8%;">Qtd</th><th style="width:16%;">Valor Unit.</th><th style="width:16%;">Total</th></tr>`;
+        if (orc.itens && orc.itens.length) {
+          orc.itens.forEach((item, i) => {
+            html += `<tr><td class="text-center">${i+1}</td><td>${esc(item.descricao)}</td><td class="text-center">${item.tipo}</td><td class="text-center">${item.quantidade}</td><td class="text-center">R$ ${(+item.valor_unitario).toFixed(2)}</td><td class="text-center">R$ ${(+item.valor_total).toFixed(2)}</td></tr>`;
+          });
+        }
+        html += `<tr style="font-weight:bold;"><td colspan="4" style="text-align:right;">Subtotal Produtos</td><td colspan="2">R$ ${(+orc.valor_produtos).toFixed(2)}</td></tr>
+        <tr style="font-weight:bold;"><td colspan="4" style="text-align:right;">Subtotal Servicos</td><td colspan="2">R$ ${(+orc.valor_servicos).toFixed(2)}</td></tr>
+        <tr><td colspan="4" style="text-align:right;">Desconto (${esc(orc.desconto_tipo)})</td><td colspan="2">R$ ${(+orc.valor_desconto).toFixed(2)}</td></tr>
+        <tr style="font-weight:bold;font-size:12px;"><td colspan="4" style="text-align:right;">TOTAL</td><td colspan="2">R$ ${(+orc.valor_total).toFixed(2)}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Informacoes Adicionais</div>
+    <div class="section-body">
+      <div class="field-row">
+        <div class="field"><span class="label">Data:</span><span class="value">${fmtDate(orc.data_orcamento)}</span></div>
+        <div class="field"><span class="label">Validade:</span><span class="value">${fmtDate(orc.validade_orcamento)}</span></div>
+        <div class="field"><span class="label">Pagamento:</span><span class="value">${esc(orc.forma_pagamento||'-')}</span></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><span class="label">Prazo Entrega:</span><span class="value">${esc(orc.prazo_entrega||'-')}</span></div>
+        <div class="field"><span class="label">Garantia:</span><span class="value">${esc(orc.garantia||'-')}</span></div>
+      </div>
+      <div class="field-row"><div class="field"><span class="label">Tecnico:</span><span class="value">${esc(orc.tecnico_nome||'-')}</span></div></div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">Observacoes</div>
+    <div class="obs-content">${esc(orc.observacoes||'')}</div>
+  </div>
+
+  <p class="validade-msg">Este orcamento e valido ate a data informada e nao reserva pecas em estoque.</p>
+
+  <div class="orc-footer">
+    <div class="signature-block">
+      <div class="sig-line">Cliente: _____________________________</div>
+    </div>
+    <div class="signature-block">
+      <div class="sig-line">Data: ____/____/________</div>
+    </div>
+  </div>`;
+
+  document.getElementById('orcPage').innerHTML = html;
+}
+
+carregarOrcamento();
+</script>
+</body>
+</html>

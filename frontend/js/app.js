@@ -149,6 +149,9 @@ async function renderPage(page, params) {
     switch (page) {
       case 'dashboard': await renderDashboard(); break;
       case 'ordens': await renderOrdensList(); break;
+      case 'orcamentos': await renderOrcamentosList(); break;
+      case 'orcamento-form': await renderOrcamentoForm(params); break;
+      case 'orcamento-detail': await renderOrcamentoDetail(params); break;
       case 'ordem-form': await renderOrdemForm(params); break;
       case 'ordem-detail': await renderOrdemDetail(params); break;
       case 'clientes': await renderClientesList(); break;
@@ -601,6 +604,565 @@ window.saveChecklist = async function(id) {
     closeModal();
     renderOrdemDetail(id);
   } catch (e) { toast(e.message, 'danger'); }
+};
+
+// ============================================================================
+// ORCAMENTOS
+// ============================================================================
+
+async function renderOrcamentosList(page = 1, filtros = {}) {
+  setTitle('Orcamentos');
+  topbarActions.innerHTML = `<button class="btn btn-primary" onclick="navigate('orcamento-form')">+ Novo Orcamento</button>`;
+
+  const params = new URLSearchParams({ page, limit: 15 });
+  if (filtros.status) params.set('status', filtros.status);
+  if (filtros.q) params.set('q', filtros.q);
+  if (filtros.data_inicio) params.set('data_inicio', filtros.data_inicio);
+  if (filtros.data_fim) params.set('data_fim', filtros.data_fim);
+
+  const res = await API.get('/orcamentos?' + params.toString());
+  const orcamentos = res.data;
+  const pag = res.pagination;
+
+  let html = `
+  <div class="search-bar">
+    <input class="form-control" placeholder="Buscar por cliente, marca, modelo, numero..." id="searchOrc" value="${escape(filtros.q || '')}">
+    <select class="form-control" id="filterStatusOrc" style="width:auto;">
+      <option value="">Todos os Status</option>
+      <option value="Aberto" ${filtros.status === 'Aberto' ? 'selected':''}>Aberto</option>
+      <option value="Enviado" ${filtros.status === 'Enviado' ? 'selected':''}>Enviado</option>
+      <option value="Aprovado" ${filtros.status === 'Aprovado' ? 'selected':''}>Aprovado</option>
+      <option value="Reprovado" ${filtros.status === 'Reprovado' ? 'selected':''}>Reprovado</option>
+      <option value="Cancelado" ${filtros.status === 'Cancelado' ? 'selected':''}>Cancelado</option>
+      <option value="Convertido OS" ${filtros.status === 'Convertido OS' ? 'selected':''}>Convertido OS</option>
+    </select>
+    <input class="form-control" type="date" id="filterDataInicioOrc" value="${escape(filtros.data_inicio||'')}" style="width:auto;" title="Data inicio">
+    <input class="form-control" type="date" id="filterDataFimOrc" value="${escape(filtros.data_fim||'')}" style="width:auto;" title="Data fim">
+    <button class="btn btn-primary btn-sm" onclick="buscarOrcamentos()">Buscar</button>
+  </div>
+
+  <div class="card"><div class="table-wrap">
+  <table>
+    <tr>
+      <th>#</th><th>Cliente</th><th>Equipamento</th><th>Data</th><th>Validade</th><th>Status</th><th>Valor</th><th>Acoes</th>
+    </tr>`;
+
+  if (orcamentos.length === 0) {
+    html += `<tr><td colspan="8"><div class="empty"><div class="icon">&#128196;</div><p>Nenhum orcamento encontrado</p></div></td></tr>`;
+  } else {
+    const statusLabels = { 'Aberto':'badge-orcamento','Enviado':'badge-enviado','Aprovado':'badge-aprovado','Reprovado':'badge-cancelado','Cancelado':'badge-cancelado','Convertido OS':'badge-finalizado' };
+    orcamentos.forEach(o => {
+      const cls = statusLabels[o.status] || '';
+      html += `<tr>
+        <td><strong>${o.numero_orcamento}</strong></td>
+        <td>${escape(o.cliente_nome)}</td>
+        <td>${escape(o.equipamento_marca||'')} ${escape(o.equipamento_modelo||'')}</td>
+        <td>${fmtDateShort(o.data_orcamento)}</td>
+        <td>${fmtDateShort(o.validade_orcamento)}</td>
+        <td><span class="badge ${cls}">${escape(o.status)}</span></td>
+        <td>R$ ${(+o.valor_total).toFixed(2)}</td>
+        <td class="actions">
+          <button class="btn btn-outline btn-sm" onclick="navigate('orcamento-detail',${o.id})">Detalhes</button>
+          ${o.status !== 'Convertido OS' ? `<button class="btn btn-outline btn-sm" onclick="navigate('orcamento-form',${o.id})">Editar</button>` : ''}
+          <button class="btn btn-outline btn-sm" onclick="window.open('/print/orcamento.html?id=${o.id}','_blank')">Imprimir</button>
+        </td>
+      </tr>`;
+    });
+  }
+
+  html += `</table></div></div>`;
+
+  if (pag.totalPages > 1) {
+    html += `<div class="pagination">`;
+    html += `<button onclick="renderOrcamentosList(${pag.page - 1}, ${JSON.stringify(filtros).replace(/"/g,"'")})" ${pag.page <= 1 ? 'disabled':''}>&laquo;</button>`;
+    html += `<span>Pag ${pag.page} de ${pag.totalPages} (${pag.total} registros)</span>`;
+    html += `<button onclick="renderOrcamentosList(${pag.page + 1}, ${JSON.stringify(filtros).replace(/"/g,"'")})" ${pag.page >= pag.totalPages ? 'disabled':''}>&raquo;</button>`;
+    html += `</div>`;
+  }
+
+  contentBody.innerHTML = html;
+}
+
+window.buscarOrcamentos = function() {
+  const q = $('searchOrc').value;
+  const status = $('filterStatusOrc').value;
+  const data_inicio = $('filterDataInicioOrc').value;
+  const data_fim = $('filterDataFimOrc').value;
+  renderOrcamentosList(1, { q, status, data_inicio, data_fim });
+};
+
+// ============================================================================
+// ORCAMENTO DETAIL
+// ============================================================================
+
+async function renderOrcamentoDetail(id) {
+  setTitle('Detalhes do Orcamento');
+  topbarActions.innerHTML = `<button class="btn btn-outline" onclick="navigate('orcamentos')">Voltar</button>
+    <button class="btn btn-warning btn-sm" onclick="window.open('/print/orcamento.html?id=${id}','_blank')">Imprimir</button>`;
+
+  const res = await API.get(`/orcamentos/${id}`);
+  const o = res.data;
+
+  const statusLabels = { 'Aberto':'badge-orcamento','Enviado':'badge-enviado','Aprovado':'badge-aprovado','Reprovado':'badge-cancelado','Cancelado':'badge-cancelado','Convertido OS':'badge-finalizado' };
+  const statusCls = statusLabels[o.status] || '';
+
+  let html = `
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div class="card-title" style="border:none;margin:0;padding:0;">Orcamento #${o.numero_orcamento}</div>
+      <div><span class="badge ${statusCls}">${escape(o.status)}</span></div>
+    </div>
+    <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;" class="no-print">
+      ${o.status === 'Aberto' ? `<button class="btn btn-primary btn-sm" onclick="alterarStatusOrcamento(${id},'Enviado')">Enviar</button>` : ''}
+      ${o.status === 'Aberto' || o.status === 'Enviado' ? `<button class="btn btn-success btn-sm" onclick="alterarStatusOrcamento(${id},'Aprovado')">Aprovar</button>` : ''}
+      ${o.status === 'Aberto' || o.status === 'Enviado' ? `<button class="btn btn-warning btn-sm" onclick="alterarStatusOrcamento(${id},'Reprovado')">Reprovar</button>` : ''}
+      ${o.status !== 'Convertido OS' && o.status !== 'Cancelado' ? `<button class="btn btn-danger btn-sm" onclick="alterarStatusOrcamento(${id},'Cancelado')">Cancelar</button>` : ''}
+      ${o.status === 'Aprovado' ? `<button class="btn btn-primary btn-sm" onclick="converterOrcamentoEmOS(${id})">Converter em OS</button>` : ''}
+      ${o.status !== 'Convertido OS' ? `<button class="btn btn-outline btn-sm" onclick="navigate('orcamento-form',${id})">Editar</button>` : ''}
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Cliente</div>
+      <p><strong>${escape(o.cliente_nome)}</strong></p>
+      <p>${escape(o.cliente_doc||'')}</p>
+      <p>${escape(o.cliente_telefone||'')}</p>
+      <p>${escape(o.cliente_email||'')}</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Datas</div>
+      <p>Emissao: ${fmtDateShort(o.data_orcamento)}</p>
+      <p>Validade: ${fmtDateShort(o.validade_orcamento)}</p>
+      <p>Tecnico: ${escape(o.tecnico_nome||'-')}</p>
+    </div>
+  </div>
+
+  <div class="grid-2">
+    <div class="card">
+      <div class="card-title">Equipamento</div>
+      <p><strong>${escape(o.equipamento_marca||'')} ${escape(o.equipamento_modelo||'')}</strong></p>
+      <p>NS: ${escape(o.numero_serie||'-')}</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Informacoes</div>
+      <p>Pagamento: ${escape(o.forma_pagamento||'-')}</p>
+      <p>Prazo entrega: ${escape(o.prazo_entrega||'-')}</p>
+      <p>Garantia: ${escape(o.garantia||'-')}</p>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Defeito Relatado</div>
+    <p>${escape(o.defeito_relatado||'Nao informado')}</p>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Itens do Orcamento</div>
+    <div class="table-wrap"><table>
+      <tr><th>#</th><th>Descricao</th><th>Tipo</th><th>Qtd</th><th>Valor Unit.</th><th>Total</th></tr>`;
+      if (o.itens && o.itens.length) {
+        o.itens.forEach((item, i) => {
+          html += `<tr><td>${i+1}</td><td>${escape(item.descricao)}</td><td>${badge(item.tipo)}</td><td>${item.quantidade}</td><td>R$ ${(+item.valor_unitario).toFixed(2)}</td><td>R$ ${(+item.valor_total).toFixed(2)}</td></tr>`;
+        });
+      } else {
+        html += `<tr><td colspan="6"><div class="empty"><p>Nenhum item adicionado</p></div></td></tr>`;
+      }
+      html += `<tr style="font-weight:bold;background:var(--bg);"><td colspan="3" style="text-align:right;">Subtotal Produtos</td><td colspan="3">R$ ${(+o.valor_produtos).toFixed(2)}</td></tr>
+      <tr style="font-weight:bold;background:var(--bg);"><td colspan="3" style="text-align:right;">Subtotal Servicos</td><td colspan="3">R$ ${(+o.valor_servicos).toFixed(2)}</td></tr>
+      <tr><td colspan="3" style="text-align:right;">Desconto (${escape(o.desconto_tipo)})</td><td colspan="3">R$ ${(+o.valor_desconto).toFixed(2)}</td></tr>
+      <tr style="font-weight:bold;font-size:15px;"><td colspan="3" style="text-align:right;">TOTAL</td><td colspan="3">R$ ${(+o.valor_total).toFixed(2)}</td></tr>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">Observacoes</div>
+    <p>${escape(o.observacoes||'Sem observacoes')}</p>
+  </div>`;
+
+  contentBody.innerHTML = html;
+}
+
+window.alterarStatusOrcamento = async function(id, status) {
+  const msgs = { 'Aprovado':'Aprovar este orcamento?','Reprovado':'Reprovar este orcamento?','Cancelado':'Cancelar este orcamento?','Enviado':'Marcar como Enviado?' };
+  if (!confirm(msgs[status] || `Alterar status para ${status}?`)) return;
+  try {
+    await API.patch(`/orcamentos/${id}/status`, { status });
+    toast(`Status alterado para ${status}`, 'success');
+    renderOrcamentoDetail(id);
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.converterOrcamentoEmOS = async function(id) {
+  if (!confirm('Converter este orcamento em Ordem de Servico? Uma nova OS sera criada.')) return;
+  try {
+    const res = await API.post(`/orcamentos/${id}/converter-os`);
+    toast(`OS #${res.data.numero_os} criada com sucesso!`, 'success');
+    renderOrcamentoDetail(id);
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+// ============================================================================
+// ORCAMENTO FORM
+// ============================================================================
+
+async function renderOrcamentoForm(editId) {
+  setTitle(editId ? 'Editar Orcamento' : 'Novo Orcamento');
+  topbarActions.innerHTML = `<button class="btn btn-outline" onclick="navigate('orcamentos')">Voltar</button>`;
+
+  const [clientes, tecnicos] = await Promise.all([
+    API.get('/clientes?limit=500'),
+    API.get('/tecnicos?status=Ativo')
+  ]);
+
+  let orc = { cliente_id: '', tecnico_id: '', data_orcamento: todayISO(), validade_orcamento: '', equipamento_marca: '', equipamento_modelo: '', numero_serie: '', defeito_relatado: '', observacoes: '', desconto_tipo: 'Valor', desconto_valor: 0, forma_pagamento: '', prazo_entrega: '', garantia: '', itens: [] };
+
+  if (editId) {
+    try {
+      const res = await API.get(`/orcamentos/${editId}`);
+      orc = res.data;
+      orc.data_orcamento = (orc.data_orcamento || '').slice(0, 10);
+      orc.validade_orcamento = (orc.validade_orcamento || '').slice(0, 10);
+    } catch (e) { contentBody.innerHTML = alertBox('danger', 'Erro: ' + e.message); return; }
+  }
+
+  let html = `
+  <div class="card">
+    <div class="card-title">${editId ? 'Editar' : 'Novo'} Orcamento</div>
+    <div id="formAlert"></div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cliente *</label>
+        <select class="form-control" id="orc_cliente_id">
+          <option value="">Selecione...</option>
+          ${clientes.data.map(c => `<option value="${c.id}" ${+orc.cliente_id === c.id ? 'selected':''}>${escape(c.nome_razao_social)} (${escape(c.cpf_cnpj)})</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Tecnico</label>
+        <select class="form-control" id="orc_tecnico_id">
+          <option value="">Selecione...</option>
+          ${tecnicos.data.map(t => `<option value="${t.id}" ${+orc.tecnico_id === t.id ? 'selected':''}>${escape(t.nome)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Data</label><input class="form-control" id="orc_data" type="date" value="${orc.data_orcamento}"></div>
+      <div class="form-group"><label>Validade</label><input class="form-control" id="orc_validade" type="date" value="${orc.validade_orcamento}"></div>
+    </div>
+    <div class="form-row-3">
+      <div class="form-group"><label>Marca</label><input class="form-control" id="orc_marca" value="${escape(orc.equipamento_marca)}"></div>
+      <div class="form-group"><label>Modelo</label><input class="form-control" id="orc_modelo" value="${escape(orc.equipamento_modelo)}"></div>
+      <div class="form-group"><label>N/S</label><input class="form-control" id="orc_ns" value="${escape(orc.numero_serie)}"></div>
+    </div>
+    <div class="form-group"><label>Defeito Relatado</label><textarea class="form-control" id="orc_defeito" rows="2">${escape(orc.defeito_relatado)}</textarea></div>
+
+    <div class="card-title" style="margin-top:16px;">Itens do Orcamento</div>
+    <div class="search-bar" style="margin-bottom:8px;">
+      <input class="form-control" id="orcItemSearch" placeholder="Buscar produto ou servico..." onkeyup="filtrarItensOrc()" autocomplete="off">
+      <select class="form-control" id="orcItemTipo" style="width:auto;">
+        <option value="Produto">Produto</option>
+        <option value="Servico">Servico</option>
+      </select>
+      <button class="btn btn-primary btn-sm" onclick="abrirCatalogoOrc()">+ Adicionar</button>
+    </div>
+    <div class="table-wrap"><table>
+      <tr><th>#</th><th>Descricao</th><th>Tipo</th><th>Qtd</th><th>Valor Unit.</th><th>Total</th><th class="no-print">Acao</th></tr>
+      <tbody id="orcItensTbody">
+        ${(orc.itens || []).map((item, i) => `
+          <tr>
+            <td>${i+1}</td>
+            <td>${escape(item.descricao)}</td>
+            <td>${badge(item.tipo)}</td>
+            <td>${item.quantidade}</td>
+            <td>R$ ${(+item.valor_unitario).toFixed(2)}</td>
+            <td>R$ ${(+item.valor_total).toFixed(2)}</td>
+            <td class="no-print"><button class="btn btn-danger btn-sm" onclick="removerItemOrcExistente(${editId},${item.id})">&times;</button></td>
+          </tr>
+        `).join('')}
+      </tbody>
+    </table></div>
+    <div id="orcTotals" style="text-align:right;margin-top:8px;padding:8px;background:var(--bg);border-radius:6px;"></div>
+
+    <div class="form-row" style="margin-top:12px;">
+      <div class="form-group"><label>Desconto Tipo</label>
+        <select class="form-control" id="orc_desc_tipo" onchange="calcOrcTotals()">
+          <option value="Valor" ${orc.desconto_tipo==='Valor'?'selected':''}>Valor (R$)</option>
+          <option value="Percentual" ${orc.desconto_tipo==='Percentual'?'selected':''}>Percentual (%)</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Desconto</label><input class="form-control" id="orc_desc_valor" value="${(+orc.desconto_valor).toFixed(2)}" onblur="fmtMoeda(this);calcOrcTotals()"></div>
+      <div class="form-group"><label>Forma Pagamento</label><input class="form-control" id="orc_pagamento" value="${escape(orc.forma_pagamento)}"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Prazo Entrega</label><input class="form-control" id="orc_prazo" value="${escape(orc.prazo_entrega)}"></div>
+      <div class="form-group"><label>Garantia</label><input class="form-control" id="orc_garantia" value="${escape(orc.garantia)}"></div>
+    </div>
+    <div class="form-group"><label>Observacoes</label><textarea class="form-control" id="orc_obs" rows="2">${escape(orc.observacoes)}</textarea></div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="salvarOrcamento(${editId || 'null'})">Salvar Orcamento</button>
+      <button class="btn btn-outline" onclick="navigate('orcamentos')">Cancelar</button>
+    </div>
+  </div>`;
+
+  contentBody.innerHTML = html;
+
+  if (editId) {
+    // Carregar itens do servidor para o cache local
+    try {
+      const full = await API.get(`/orcamentos/${editId}`);
+      window._orcItensCache = (full.data.itens || []).map(item => ({
+        _tempId: 'srv_' + item.id,
+        id: item.id,
+        descricao: item.descricao,
+        tipo: item.tipo,
+        quantidade: parseFloat(item.quantidade),
+        valor_unitario: parseFloat(item.valor_unitario),
+        valor_total: parseFloat(item.valor_total)
+      }));
+    } catch (e) {}
+  } else {
+    window._orcItensCache = [];
+  }
+
+  calcOrcTotals();
+}
+
+window._orcItensCache = [];
+
+window.abrirCatalogoOrc = async function() {
+  const [prodRes, servRes] = await Promise.all([
+    API.get('/produtos'),
+    API.get('/servicos')
+  ]);
+  const produtos = prodRes.data.filter(p => p.status === 'Ativo');
+  const servicos = servRes.data.filter(s => s.status === 'Ativo');
+
+  window._orcProdutosCache = produtos;
+  window._orcServicosCache = servicos;
+
+  let html = `
+  <h3>Adicionar Item ao Orcamento</h3>
+  <div class="tabs" style="margin-bottom:12px;">
+    <div class="tab active" onclick="switchOrcItemTab('produtos',this)" id="tabOrcProdutos">Produtos</div>
+    <div class="tab" onclick="switchOrcItemTab('servicos',this)" id="tabOrcServicos">Servicos</div>
+  </div>
+  <div class="search-bar" style="margin-bottom:8px;">
+    <input class="form-control" id="orcCatSearch" placeholder="Buscar..." onkeyup="filtrarOrcCatalogo()" autofocus>
+  </div>
+  <div id="orcCatList" style="max-height:300px;overflow-y:auto;">
+    ${renderOrcItemList(produtos, 'Produto')}
+  </div>
+  <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);">
+    <div class="form-group"><label>Item</label><input class="form-control" id="orcCatDesc" readonly></div>
+    <div class="form-row">
+      <div class="form-group"><label>Qtd</label><input class="form-control" id="orcCatQtd" type="number" value="1" min="0.01" step="1"></div>
+      <div class="form-group"><label>Valor Unit.</label><input class="form-control" id="orcCatValor" value="0.00" onblur="fmtMoeda(this)"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-primary" onclick="confirmarAddItemOrc()">Adicionar</button>
+      <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+    </div>
+  </div>`;
+  openModal(html);
+  setTimeout(() => document.getElementById('orcCatSearch')?.focus(), 100);
+};
+
+function renderOrcItemList(itens, tipo) {
+  if (!itens.length) return '<div class="empty"><p>Nenhum item disponivel</p></div>';
+  return itens.map(item => {
+    const nome = tipo === 'Produto' ? item.descricao : item.nome_servico;
+    const valor = tipo === 'Produto' ? item.preco_venda : item.valor_servico;
+    return `<div class="item-option" onclick="selecionarOrcItem('${escape(nome)}','${tipo}',${valor})">
+      <strong>${escape(nome)}</strong><br>
+      <span style="font-size:12px;color:var(--muted);">R$ ${(+valor).toFixed(2)}</span>
+    </div>`;
+  }).join('');
+}
+
+window.switchOrcItemTab = function(tab, el) {
+  document.querySelectorAll('.tabs .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  const container = document.getElementById('orcCatList');
+  const itens = tab === 'produtos' ? window._orcProdutosCache : window._orcServicosCache;
+  container.innerHTML = renderOrcItemList(itens, tab === 'produtos' ? 'Produto' : 'Servico');
+};
+
+window.filtrarOrcCatalogo = function() {
+  const q = (document.getElementById('orcCatSearch').value || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const activeTab = document.querySelector('.tabs .tab.active');
+  const tab = activeTab?.id === 'tabOrcServicos' ? 'servicos' : 'produtos';
+  const tipo = tab === 'produtos' ? 'Produto' : 'Servico';
+  const all = tab === 'produtos' ? window._orcProdutosCache : window._orcServicosCache;
+  const filtrados = all.filter(item => {
+    const nome = (tipo === 'Produto' ? item.descricao : item.nome_servico) || '';
+    return nome.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').includes(q);
+  });
+  document.getElementById('orcCatList').innerHTML = renderOrcItemList(filtrados, tipo);
+};
+
+window.selecionarOrcItem = function(nome, tipo, valor) {
+  document.getElementById('orcCatDesc').value = nome;
+  document.getElementById('orcCatValor').value = valor.toFixed(2);
+  document.getElementById('orcCatQtd').focus();
+};
+
+window.confirmarAddItemOrc = function() {
+  const desc = document.getElementById('orcCatDesc').value.trim();
+  const tipo = document.querySelector('.tabs .tab.active')?.id === 'tabOrcServicos' ? 'Servico' : 'Produto';
+  const qtd = parseFloat(document.getElementById('orcCatQtd').value) || 1;
+  const valor = parseFloat(document.getElementById('orcCatValor').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+  if (!desc) { toast('Selecione um item da lista', 'warning'); return; }
+
+  const total = qtd * valor;
+  const item = {
+    _tempId: 'tmp_' + Date.now() + Math.random(),
+    descricao: desc,
+    tipo,
+    quantidade: qtd,
+    valor_unitario: valor,
+    valor_total: total
+  };
+  window._orcItensCache.push(item);
+  closeModal();
+  renderOrcFormItens();
+  calcOrcTotals();
+};
+
+function renderOrcFormItens() {
+  const tbody = document.getElementById('orcItensTbody');
+  if (!tbody) return;
+  if (!window._orcItensCache.length) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="empty"><p>Nenhum item adicionado</p></div></td></tr>';
+    return;
+  }
+  tbody.innerHTML = window._orcItensCache.map((item, i) => `
+    <tr>
+      <td>${i+1}</td>
+      <td>${escape(item.descricao)}</td>
+      <td>${badge(item.tipo)}</td>
+      <td>${item.quantidade}</td>
+      <td>R$ ${(+item.valor_unitario).toFixed(2)}</td>
+      <td>R$ ${(+item.valor_total).toFixed(2)}</td>
+      <td class="no-print"><button class="btn btn-danger btn-sm" onclick="removerItemOrcTemp('${item._tempId}')">&times;</button></td>
+    </tr>
+  `).join('');
+}
+
+window.removerItemOrcTemp = function(tempId) {
+  window._orcItensCache = window._orcItensCache.filter(i => i._tempId !== tempId);
+  renderOrcFormItens();
+  calcOrcTotals();
+};
+
+window.removerItemOrcExistente = async function(orcId, itemId) {
+  if (!confirm('Remover este item do orcamento?')) return;
+  try {
+    await API.del(`/orcamentos/${orcId}/itens/${itemId}`);
+    window._orcItensCache = window._orcItensCache.filter(i => i.id !== itemId);
+    renderOrcFormItens();
+    calcOrcTotals();
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+function calcOrcTotals() {
+  const container = document.getElementById('orcTotals');
+  if (!container) return;
+
+  let totalProd = 0, totalServ = 0;
+  (window._orcItensCache || []).forEach(item => {
+    if (item.tipo === 'Produto') totalProd += parseFloat(item.valor_total) || 0;
+    else totalServ += parseFloat(item.valor_total) || 0;
+  });
+  const subtotal = totalProd + totalServ;
+
+  const descTipo = document.getElementById('orc_desc_tipo')?.value || 'Valor';
+  const descValor = parseFloat(document.getElementById('orc_desc_valor')?.value?.replace(/[^\d.,]/g,'').replace(',','.') || 0) || 0;
+
+  let descFinal = 0;
+  if (descTipo === 'Percentual') {
+    descFinal = subtotal * (descValor / 100);
+  } else {
+    descFinal = Math.min(descValor, subtotal);
+  }
+
+  const total = subtotal - descFinal;
+
+  container.innerHTML = `
+    <strong>Subtotal Produtos:</strong> R$ ${totalProd.toFixed(2)}<br>
+    <strong>Subtotal Servicos:</strong> R$ ${totalServ.toFixed(2)}<br>
+    <strong>Desconto (${descTipo}):</strong> R$ ${descFinal.toFixed(2)}<br>
+    <span style="font-size:18px;font-weight:bold;">TOTAL: R$ ${total.toFixed(2)}</span>
+  `;
+}
+
+window.salvarOrcamento = async function(editId) {
+  const cliente_id = $('orc_cliente_id').value;
+  if (!cliente_id) { $('formAlert').innerHTML = alertBox('danger', 'Selecione um cliente'); return; }
+
+  const descTipo = $('orc_desc_tipo').value;
+  const descValor = parseFloat($('orc_desc_valor').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+
+  try {
+    const body = {
+      cliente_id: parseInt(cliente_id),
+      tecnico_id: parseInt($('orc_tecnico_id').value) || null,
+      data_orcamento: $('orc_data').value || todayISO(),
+      validade_orcamento: $('orc_validade').value || null,
+      equipamento_marca: $('orc_marca').value,
+      equipamento_modelo: $('orc_modelo').value,
+      numero_serie: $('orc_ns').value,
+      defeito_relatado: $('orc_defeito').value,
+      observacoes: $('orc_obs').value,
+      desconto_tipo: descTipo,
+      desconto_valor: descValor,
+      forma_pagamento: $('orc_pagamento').value,
+      prazo_entrega: $('orc_prazo').value,
+      garantia: $('orc_garantia').value
+    };
+
+    let orcId;
+    if (editId) {
+      await API.put(`/orcamentos/${editId}`, body);
+      orcId = editId;
+    } else {
+      const res = await API.post('/orcamentos', body);
+      orcId = res.data.id;
+    }
+
+    // Salvar itens (enviar novos ou atualizados)
+    if (window._orcItensCache && window._orcItensCache.length) {
+      // Remover itens que foram deletados (nao estao no cache mas estao no BD)
+      if (editId) {
+        // Nao podemos saber quais foram removidos, entao vamos remover todos e reinserir
+        // Primeiro pegar os que existem no BD
+        const existentes = await API.get(`/orcamentos/${orcId}`);
+        for (const item of existentes.data.itens || []) {
+          const aindaTem = window._orcItensCache.some(i => i.id === item.id);
+          if (!aindaTem) {
+            await API.del(`/orcamentos/${orcId}/itens/${item.id}`);
+          }
+        }
+      }
+
+      // Adicionar itens que sao temporarios (novos)
+      for (const item of window._orcItensCache) {
+        if (!item.id || String(item._tempId).startsWith('tmp_')) {
+          await API.post(`/orcamentos/${orcId}/itens`, {
+            tipo: item.tipo,
+            descricao: item.descricao,
+            quantidade: item.quantidade,
+            valor_unitario: item.valor_unitario,
+            produto_id: item.produto_id || null,
+            servico_id: item.servico_id || null
+          });
+        }
+      }
+    }
+
+    $('formAlert').innerHTML = alertBox('success', `Orcamento #${orcId} salvo com sucesso!`);
+    setTimeout(() => navigate('orcamento-detail', orcId), 1000);
+  } catch (e) { $('formAlert').innerHTML = alertBox('danger', 'Erro: ' + e.message); }
 };
 
 // ============================================================================
