@@ -60,7 +60,14 @@ router.get('/reports', async (req, res) => {
     ]);
 
     res.json({ success: true, data: { servicos: servicos.rows, defeitos: defeitos.rows, tecnicos: tecnicos.rows } });
-  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+   } catch (e) {
+  console.error('ERRO DASHBOARD:', e);
+  res.status(500).json({
+    success: false,
+    error: e.message || e.toString(),
+    detail: e
+  });
+}
 });
 
 module.exports = router;
