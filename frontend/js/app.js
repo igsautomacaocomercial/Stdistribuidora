@@ -252,7 +252,7 @@ async function renderPDV() {
   <div class="pdv-container">
     <div class="pdv-left">
       <div class="pdv-search">
-        <input id="pdvBusca" placeholder="Buscar produto (codigo, descricao, cod. barras) [F2]" autofocus>
+        <input id="pdvBusca" placeholder="Buscar produto (descricao ou codigo de barras) [F2]" autofocus>
         <button class="btn btn-primary" onclick="buscarProdutoPDV()" style="padding:12px 20px;">Buscar</button>
       </div>
       <div class="pdv-results" id="pdvResultados">

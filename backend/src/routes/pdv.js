@@ -10,9 +10,9 @@ router.get('/buscar-produto', async (req, res) => {
 
     const t = `%${q.trim()}%`;
     const r = await db.query(`
-      SELECT id, descricao, codigo_barras, codigo_interno, preco_venda, estoque_atual, status
+      SELECT id, descricao, codigo_barras, preco_venda, estoque_atual, status
       FROM produtos
-      WHERE (descricao ILIKE $1 OR codigo_barras ILIKE $1 OR codigo_interno ILIKE $1)
+      WHERE (descricao ILIKE $1 OR codigo_barras ILIKE $1)
         AND status='Ativo'
       ORDER BY descricao LIMIT 20
     `, [t]);
