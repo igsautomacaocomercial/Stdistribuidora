@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Cupom Venda</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Courier New', 'Lucida Console', monospace;
+  font-size: 11px; color: #000; background: #fff;
+  width: 80mm; padding: 4mm 3mm;
+}
+@page { size: 80mm auto; margin: 0; }
+@media print { body { width: 72mm; } .no-print { display: none !important; } }
+.header { text-align: center; margin-bottom: 6px; }
+.header h2 { font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+.header .info { font-size: 9px; line-height: 1.2; }
+.divider { border-top: 1px dashed #000; margin: 4px 0; }
+.row { display: flex; justify-content: space-between; font-size: 10px; }
+.row span { flex: 1; }
+.total-row { display: flex; justify-content: space-between; font-weight: bold; font-size: 12px; padding: 2px 0; }
+.item-row { font-size: 9px; margin-bottom: 1px; }
+.item-row .desc { }
+.item-row .qtd-preco { text-align: right; }
+.pag-row { font-size: 9px; display: flex; justify-content: space-between; }
+.footer { text-align: center; font-size: 8px; margin-top: 8px; border-top: 1px dashed #000; padding-top: 6px; }
+.footer p { margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<div class="no-print" style="margin-bottom:12px;text-align:center;font-family:sans-serif;">
+  <button class="btn btn-primary" onclick="window.print()" style="padding:10px 30px;font-size:14px;">Imprimir Cupom</button>
+  <p style="margin-top:8px;font-size:11px;">Carregando venda #<span id="loadingNum">...</span></p>
+</div>
+
+<div id="cupomContent">
+  <p style="text-align:center;padding:20px;">Carregando...</p>
+</div>
+
+<script>
+async function carregar() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) { document.getElementById('cupomContent').innerHTML = '<p style="padding:20px;text-align:center;">ID nao informado</p>'; return; }
+
+  document.getElementById('loadingNum').textContent = id;
+
+  try {
+    const res = await fetch('/api/vendas/' + id + '/print');
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    renderizar(json.data);
+  } catch (e) {
+    document.getElementById('cupomContent').innerHTML = '<p style="padding:20px;text-align:center;">Erro: ' + e.message + '</p>';
+  }
+}
+
+function fmtMoeda(v) { return 'R$ ' + (+v).toFixed(2).replace('.',','); }
+function fmtData(d) { if (!d) return ''; const dt = new Date(d); return dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'}); }
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function renderizar(v) {
+  const emit = v.emitente || { razao_social: 'ST Distribuidora', cnpj: '', telefone: '' };
+  let html = '';
+
+  // Header
+  html += '<div class="header">';
+  html += '<h2>' + esc(emit.razao_social) + '</h2>';
+  html += '<div class="info">' + esc(emit.logradouro||'') + (emit.numero ? ', ' + esc(emit.numero) : '') + '</div>';
+  html += '<div class="info">CNPJ: ' + esc(emit.cnpj||'') + '</div>';
+  html += '<div class="info">Tel: ' + esc(emit.telefone||'') + '</div>';
+  html += '</div>';
+
+  html += '<div class="divider"></div>';
+
+  html += '<div style="text-align:center;font-size:10px;font-weight:bold;margin:4px 0;">CUPOM FISCAL - VENDA #' + v.numero_venda + '</div>';
+
+  html += '<div style="font-size:9px;">';
+  html += '<div>Data: ' + fmtData(v.data_hora) + '</div>';
+  html += '<div>Vendedor: ' + esc(v.vendedor_nome||'') + '</div>';
+  if (v.cliente_nome) html += '<div>Cliente: ' + esc(v.cliente_nome) + '</div>';
+  html += '</div>';
+
+  html += '<div class="divider"></div>';
+
+  // Items
+  html += '<div style="font-size:9px;font-weight:bold;display:flex;justify-content:space-between;margin-bottom:2px;">';
+  html += '<span style="flex:3;">ITEM</span><span style="flex:1;text-align:center;">QTD</span><span style="flex:2;text-align:right;">VALOR</span>';
+  html += '</div>';
+
+  if (v.itens && v.itens.length) {
+    v.itens.forEach(function(item) {
+      html += '<div class="item-row" style="display:flex;justify-content:space-between;">';
+      html += '<span style="flex:3;">' + esc(item.descricao) + '</span>';
+      html += '<span style="flex:1;text-align:center;">' + item.quantidade + '</span>';
+      html += '<span style="flex:2;text-align:right;">' + fmtMoeda(item.valor_total) + '</span>';
+      html += '</div>';
+    });
+  }
+
+  html += '<div class="divider"></div>';
+
+  // Totals
+  html += '<div class="total-row"><span>Subtotal:</span><span>' + fmtMoeda(v.subtotal) + '</span></div>';
+  if (parseFloat(v.valor_desconto) > 0) {
+    html += '<div class="total-row" style="font-size:10px;color:#555;"><span>Desconto:</span><span>- ' + fmtMoeda(v.valor_desconto) + '</span></div>';
+  }
+  html += '<div class="total-row" style="font-size:14px;"><span>TOTAL:</span><span>' + fmtMoeda(v.valor_total) + '</span></div>';
+
+  html += '<div class="divider"></div>';
+
+  // Payments
+  html += '<div style="font-size:9px;margin-bottom:4px;"><strong>Pagamentos:</strong></div>';
+  if (v.pagamentos && v.pagamentos.length) {
+    v.pagamentos.forEach(function(pg) {
+      html += '<div class="pag-row"><span>' + esc(pg.forma_pagamento_descricao) + '</span><span>' + fmtMoeda(pg.valor) + '</span></div>';
+      if (parseFloat(pg.troco) > 0) {
+        html += '<div class="pag-row" style="color:#555;"><span>Troco</span><span>' + fmtMoeda(pg.troco) + '</span></div>';
+      }
+    });
+  }
+
+  // Footer
+  html += '<div class="footer">';
+  html += '<p>Obrigado pela preferencia!</p>';
+  html += '<p>' + esc(emit.razao_social) + '</p>';
+  html += '<p>CNPJ: ' + esc(emit.cnpj||'') + ' | Tel: ' + esc(emit.telefone||'') + '</p>';
+  if (emit.email) html += '<p>' + esc(emit.email) + '</p>';
+  html += '<p style="margin-top:4px;">Sistema desenvolvido IGS AUTOMACAO COMERCIAL</p>';
+  html += '</div>';
+
+  document.getElementById('cupomContent').innerHTML = html;
+}
+
+carregar();
+</script>
+</body>
+</html>

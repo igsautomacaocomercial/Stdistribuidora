@@ -640,9 +640,19 @@ window.finalizarVendaPg = async function() {
   try {
     await API.post(`/vendas/${window._pdvPagVendaId}/finalizar`, { pagamentos });
     closeModal();
-    toast('Venda finalizada com sucesso!', 'success');
+    const vendaId = window._pdvPagVendaId;
     _pdvState = { ..._pdvState, vendaId: null, itens: [], selectedItemIdx: -1 };
     renderPDV();
+    // Perguntar se quer imprimir cupom
+    setTimeout(() => {
+      openModal(`<h3>Cupom da Venda</h3>
+        <p style="margin:16px 0;font-size:15px;">Venda finalizada com sucesso!</p>
+        <p style="margin-bottom:16px;">Deseja imprimir o cupom?</p>
+        <div class="form-actions" style="justify-content:center;">
+          <button class="btn btn-primary" onclick="window.open('/print/venda.html?id=${vendaId}','_blank');closeModal();" style="padding:12px 32px;">Sim, Imprimir</button>
+          <button class="btn btn-outline" onclick="closeModal()">Nao</button>
+        </div>`);
+    }, 300);
   } catch (e) { toast(e.message, 'danger'); }
 };
 

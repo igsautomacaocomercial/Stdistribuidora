@@ -310,6 +310,35 @@ router.put('/:id', async (req, res) => {
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
+// GET /api/vendas/:id/print - dados para cupom 80mm
+router.get('/:id/print', async (req, res) => {
+  try {
+    const r = await db.query(`
+      SELECT v.*, c.nome_razao_social AS cliente_nome, c.cpf_cnpj AS cliente_doc,
+        c.telefone AS cliente_telefone, c.logradouro AS cliente_logradouro,
+        c.numero AS cliente_numero, c.bairro AS cliente_bairro,
+        c.cidade AS cliente_cidade, c.uf AS cliente_uf,
+        vd.nome AS vendedor_nome
+      FROM vendas v
+      LEFT JOIN clientes c ON c.id=v.cliente_id
+      LEFT JOIN vendedores vd ON vd.id=v.vendedor_id
+      WHERE v.id=$1
+    `, [req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ success: false, error: 'Venda nao encontrada' });
+
+    const itens = await db.query('SELECT * FROM venda_itens WHERE venda_id=$1 ORDER BY id', [req.params.id]);
+    const pagamentos = await db.query(`
+      SELECT vp.*, fp.descricao AS forma_pagamento_descricao
+      FROM venda_pagamentos vp
+      JOIN formas_pagamento fp ON fp.id=vp.forma_pagamento_id
+      WHERE vp.venda_id=$1 ORDER BY vp.id
+    `, [req.params.id]);
+    const emit = await db.query('SELECT * FROM emitente LIMIT 1');
+
+    res.json({ success: true, data: { ...r.rows[0], itens: itens.rows, pagamentos: pagamentos.rows, emitente: emit.rows[0] || null } });
+  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+});
+
 async function recalcularVenda(vendaId) {
   const sums = await db.query(`
     SELECT COALESCE(SUM(valor_total), 0) AS subtotal FROM venda_itens WHERE venda_id=$1
