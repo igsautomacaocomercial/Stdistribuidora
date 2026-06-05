@@ -580,7 +580,7 @@ async function abrirModalPagamento(vendaId) {
   openModal(html);
   setTimeout(() => {
     const first = document.querySelector('.pg-forma-valor');
-    if (first) { first.value = total.toFixed(2).replace('.',','); pgRecalcular(); first.focus(); }
+    if (first) first.focus();
   }, 100);
 }
 
@@ -648,11 +648,10 @@ window.pgRecalcular = function() {
 window.finalizarVendaPg = async function() {
   const pagamentos = [];
   const inputs = document.querySelectorAll('.pg-forma-valor');
-  let ok = false;
+  let totalValor = 0, totalTroco = 0;
   inputs.forEach(inp => {
     const v = parseFloat(inp.value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
     if (v > 0) {
-      ok = true;
       const fid = parseInt(inp.dataset.fid);
       const fdesc = inp.dataset.fdesc;
       const parcelaInp = document.querySelector(`.pg-forma-parcela[data-fid="${fid}"]`);
@@ -660,10 +659,16 @@ window.finalizarVendaPg = async function() {
       const recInp = document.querySelector(`.pg-forma-recebido[data-fid="${fid}"]`);
       const valorRecebido = recInp ? (parseFloat(recInp.value.replace(/[^\d.,]/g,'').replace(',','.')) || 0) : v;
       const troco = Math.max(0, valorRecebido - v);
+      totalValor += v; totalTroco += troco;
       pagamentos.push({ forma_pagamento_id: fid, forma_desc: fdesc, valor: v, parcelas, valor_recebido: valorRecebido, troco, observacao: '' });
     }
   });
-  if (!ok) { toast('Informe o valor de pelo menos uma forma de pagamento', 'warning'); return; }
+  if (!pagamentos.length) { toast('Informe o valor de pelo menos uma forma de pagamento', 'warning'); return; }
+  const efetivo = totalValor - totalTroco;
+  if (Math.abs(efetivo - window._pdvPagTotal) > 0.01) {
+    toast(`Total dos pagamentos (R$ ${totalValor.toFixed(2)}) ultrapassa o valor da venda. Troco total: R$ ${totalTroco.toFixed(2)}`, 'warning');
+    return;
+  }
   try {
     await API.post(`/vendas/${window._pdvPagVendaId}/finalizar`, { pagamentos });
     closeModal();
