@@ -252,7 +252,7 @@ async function renderPDV() {
   <div class="pdv-container">
     <div class="pdv-left">
       <div class="pdv-search">
-        <input id="pdvBusca" placeholder="Buscar produto (descricao ou codigo de barras) [F2]" autofocus>
+        <input id="pdvBusca" placeholder="Buscar produto (descricao ou codigo de barras) [F2]" autofocus onkeyup="pdvBuscaChange()">
         <button class="btn btn-primary" onclick="buscarProdutoPDV()" style="padding:12px 20px;">Buscar</button>
       </div>
       <div class="pdv-results" id="pdvResultados">
@@ -327,9 +327,14 @@ function setupPDVKeyboard() {
   };
 }
 
+window.pdvBuscaChange = function() {
+  clearTimeout(_pdvState.searchTimeout);
+  _pdvState.searchTimeout = setTimeout(buscarProdutoPDV, 300);
+};
+
 window.buscarProdutoPDV = async function() {
   const q = document.getElementById('pdvBusca').value.trim();
-  if (!q) return;
+  if (!q) { document.getElementById('pdvResultados').innerHTML = '<div class="empty"><p>Digite para buscar produtos</p></div>'; return; }
   try {
     const res = await API.get('/pdv/buscar-produto?q=' + encodeURIComponent(q));
     const resultados = document.getElementById('pdvResultados');
@@ -347,6 +352,7 @@ window.buscarProdutoPDV = async function() {
 };
 
 window.pdvAddProduto = function(prodId, desc, preco, estoque) {
+  if (!_pdvState.vendedorId && _pdvState.itens.length === 0) { pdvSetVendedor(); }
   const item = {
     _tempId: 'tmp_' + Date.now(),
     produto_id: prodId,
@@ -541,84 +547,103 @@ async function abrirModalPagamento(vendaId) {
   const formas = await API.get('/formas-pagamento?ativo=true');
   const total = parseFloat(venda.data.valor_total);
 
-  let pagamentos = [];
+  window._pdvPagVendaId = vendaId;
+  window._pdvPagVendaNum = venda.data.numero_venda;
 
   let html = `
   <h3>Finalizar Venda #${venda.data.numero_venda}</h3>
-  <div style="text-align:center;padding:12px;margin-bottom:12px;background:var(--bg);border-radius:8px;">
+  <div style="text-align:center;padding:10px;margin-bottom:12px;background:var(--bg);border-radius:8px;">
     <div style="font-size:13px;color:var(--muted);">Total a Pagar</div>
-    <div style="font-size:32px;font-weight:700;">R$ ${total.toFixed(2)}</div>
+    <div style="font-size:28px;font-weight:700;">R$ ${total.toFixed(2)}</div>
+    <div style="font-size:13px;margin-top:4px;">Restante: <strong id="pgRestante">R$ ${total.toFixed(2)}</strong></div>
   </div>
-  <div style="margin-bottom:12px;">
-    <label>Forma de Pagamento</label>
-    <select class="form-control" id="selFormaPag">
-      ${formas.data.map(f => `<option value="${f.id}" data-troco="${f.permite_troco}" data-parcela="${f.permite_parcelamento}">${escape(f.descricao)}</option>`).join('')}
-    </select>
-  </div>
-  <div class="form-row">
-    <div class="form-group"><label>Valor</label><input class="form-control" id="pgValor" value="${total.toFixed(2)}" onblur="fmtMoeda(this)"></div>
-    <div class="form-group"><label>Valor Recebido</label><input class="form-control" id="pgRecebido" value="${total.toFixed(2)}" onblur="fmtMoeda(this);calcTrocoModal()"></div>
-  </div>
-  <div class="form-row">
-    <div class="form-group"><label>Parcelas</label><input class="form-control" id="pgParcelas" type="number" value="1" min="1"></div>
-    <div class="form-group"><label>Troco</label><input class="form-control" id="pgTroco" readonly style="font-weight:700;font-size:16px;color:var(--success);"></div>
+  <div style="max-height:320px;overflow-y:auto;margin-bottom:12px;" id="pgFormasContainer">
+    <table style="width:100%;border-collapse:collapse;">
+      <thead><tr style="font-size:12px;color:var(--muted);"><th style="text-align:left;padding:4px 8px;">Forma</th><th style="text-align:right;padding:4px 8px;">Valor</th><th style="text-align:right;padding:4px 8px;">Parcelas</th></tr></thead>
+      <tbody>${formas.data.map(f => `
+        <tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:6px 8px;font-weight:600;">${escape(f.descricao)}</td>
+          <td style="padding:2px 8px;width:160px;"><input class="form-control pg-forma-valor" data-fid="${f.id}" data-fdesc="${escape(f.descricao)}" data-troco="${f.permite_troco}" data-parcela="${f.permite_parcelamento}" value="0,00" onblur="fmtMoeda(this);pgRecalcular()" onfocus="this.select()" style="text-align:right;height:32px;padding:4px 8px;"></td>
+          <td style="padding:2px 8px;width:80px;"><input class="form-control pg-forma-parcela" data-fid="${f.id}" type="number" value="1" min="1" style="text-align:center;height:32px;padding:4px 8px;${f.permite_parcelamento === false ? 'display:none;' : ''}"></td>
+        </tr>`).join('')}</tbody>
+    </table>
   </div>
   <div class="form-group"><label>Observacao</label><input class="form-control" id="pgObs"></div>
-  <div class="form-actions">
-    <button class="btn btn-primary" onclick="addPagamentoModal(${vendaId}, ${total})">+ Adicionar Pagamento</button>
-    <button class="btn btn-success" onclick="finalizarVendaModal(${vendaId})" id="btnFinalizarModal" disabled>Finalizar Venda</button>
+  <div class="form-actions" style="margin-top:12px;">
+    <button class="btn btn-success" onclick="finalizarVendaPg()" id="btnFinalizarPg" disabled>Finalizar Venda</button>
     <button class="btn btn-outline" onclick="pdvCancelarVenda(${vendaId})">Cancelar Venda</button>
-  </div>
-  <div class="pagamento-list" id="listaPagamentos" style="margin-top:12px;">
-    <p style="font-size:12px;color:var(--muted);">Nenhum pagamento adicionado</p>
   </div>`;
 
-  window._pdvPagamentos = [];
-  window._pdvTotalVenda = total;
+  window._pdvPagTotal = total;
 
   openModal(html);
-  setTimeout(() => document.getElementById('pgValor')?.focus(), 100);
+  setTimeout(() => {
+    const first = document.querySelector('.pg-forma-valor');
+    if (first) { first.value = total.toFixed(2).replace('.',','); pgRecalcular(); first.focus(); }
+  }, 100);
 }
 
-window.calcTrocoModal = function() {
-  const recebido = parseFloat(document.getElementById('pgRecebido').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
-  const valor = parseFloat(document.getElementById('pgValor').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
-  const troco = Math.max(0, recebido - valor);
-  document.getElementById('pgTroco').value = troco.toFixed(2);
+window.pgRecalcular = function() {
+  let totalPago = 0;
+  const inputs = document.querySelectorAll('.pg-forma-valor');
+  inputs.forEach(inp => {
+    const v = parseFloat(inp.value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+    totalPago += v;
+  });
+  const restante = Math.max(0, window._pdvPagTotal - totalPago);
+  document.getElementById('pgRestante').textContent = 'R$ ' + restante.toFixed(2);
+  document.getElementById('btnFinalizarPg').disabled = totalPago < window._pdvPagTotal;
 
-  const formaSelect = document.getElementById('selFormaPag');
-  const permiteTroco = formaSelect.options[formaSelect.selectedIndex]?.dataset.troco === 'true';
-  if (!permiteTroco && recebido > valor) {
-    toast('Esta forma de pagamento nao permite troco', 'warning');
+  // Auto-suggest restante on next empty field when user fills one
+  if (restante > 0) {
+    const inputsArr = Array.from(inputs);
+    const lastFocused = document.activeElement;
+    const lastIdx = inputsArr.indexOf(lastFocused);
+    // If the field user just left has a value > 0, suggest restante on the next empty
+    if (lastFocused && lastFocused.classList.contains('pg-forma-valor')) {
+      const lastVal = parseFloat(lastFocused.value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+      if (lastVal > 0) {
+        for (let i = lastIdx + 1; i < inputsArr.length; i++) {
+          const nextVal = parseFloat(inputsArr[i].value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+          if (nextVal === 0) {
+            inputsArr[i].value = restante.toFixed(2).replace('.',',');
+            inputsArr[i].focus();
+            inputsArr[i].select();
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (restante === 0 && totalPago >= window._pdvPagTotal) {
+    toast('Total atingido!', 'success');
   }
 };
 
-window.addPagamentoModal = function(vendaId, total) {
-  const formaId = parseInt(document.getElementById('selFormaPag').value);
-  const formaDesc = document.getElementById('selFormaPag').options[document.getElementById('selFormaPag').selectedIndex].text;
-  const valor = parseFloat(document.getElementById('pgValor').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
-  const recebido = parseFloat(document.getElementById('pgRecebido').value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
-  const parcelas = parseInt(document.getElementById('pgParcelas').value) || 1;
-  const troco = Math.max(0, recebido - valor);
-  const obs = document.getElementById('pgObs').value;
-
-  if (valor <= 0) { toast('Valor invalido', 'warning'); return; }
-
-  window._pdvPagamentos.push({ forma_pagamento_id: formaId, forma_desc: formaDesc, valor, parcelas, valor_recebido: recebido, troco, observacao: obs });
-
-  const totalPago = window._pdvPagamentos.reduce((s, p) => s + p.valor, 0);
-  const restante = Math.max(0, total - totalPago);
-  document.getElementById('pgValor').value = restante.toFixed(2);
-  document.getElementById('pgRecebido').value = restante.toFixed(2);
-  document.getElementById('pgObs').value = '';
-
-  document.getElementById('listaPagamentos').innerHTML = window._pdvPagamentos.map((p, i) =>
-    `<div class="pagamento-item"><span><strong>${escape(p.forma_desc)}</strong> R$ ${p.valor.toFixed(2)}${p.parcelas > 1 ? ' ('+p.parcelas+'x)' : ''}${p.troco > 0 ? ' - Troco: R$ '+p.troco.toFixed(2) : ''}</span></div>`
-  ).join('');
-
-  document.getElementById('btnFinalizarModal').disabled = totalPago < total;
-
-  if (totalPago >= total) { toast('Total atingido! Clique em Finalizar Venda', 'success'); }
+window.finalizarVendaPg = async function() {
+  const pagamentos = [];
+  const inputs = document.querySelectorAll('.pg-forma-valor');
+  let ok = false;
+  inputs.forEach(inp => {
+    const v = parseFloat(inp.value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+    if (v > 0) {
+      ok = true;
+      const fid = parseInt(inp.dataset.fid);
+      const fdesc = inp.dataset.fdesc;
+      const parcelaInp = document.querySelector(`.pg-forma-parcela[data-fid="${fid}"]`);
+      const parcelas = parcelaInp ? parseInt(parcelaInp.value) || 1 : 1;
+      pagamentos.push({ forma_pagamento_id: fid, forma_desc: fdesc, valor: v, parcelas, valor_recebido: v, troco: 0, observacao: '' });
+    }
+  });
+  if (!ok) { toast('Informe o valor de pelo menos uma forma de pagamento', 'warning'); return; }
+  try {
+    await API.post(`/vendas/${window._pdvPagVendaId}/finalizar`, { pagamentos });
+    closeModal();
+    toast('Venda finalizada com sucesso!', 'success');
+    _pdvState = { ..._pdvState, vendaId: null, itens: [], selectedItemIdx: -1 };
+    renderPDV();
+  } catch (e) { toast(e.message, 'danger'); }
 };
 
 window.finalizarVendaModal = async function(vendaId) {
