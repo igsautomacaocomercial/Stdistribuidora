@@ -1,0 +1,133 @@
+PostgreSQL
+st_distribuidora
+Free
+Upgrade your instance
+View docs
+
+Connect
+Service ID:
+dpg-d8h1bs28pkls73bqa27g-a
+
+Info
+Your database will expire on July 4, 2026. The database will be deleted unless you upgrade to a paid instance type.
+General
+Name
+A unique name for your database.
+st_distribuidora
+
+Edit
+Created
+11 minutes ago
+Status
+available
+PostgreSQL Version
+18
+Region
+Virginia (US East)
+Read Replicas
+
+Add Read Replica
+Storage
+Fetching storage metrics
+Storage Autoscaling
+Disabled
+Datadog API Key
+
+Add Datadog API Key
+Postgres Instance
+Instance Type
+Free
+256 MB
+ RAM
+0.1
+ CPU
+1 GB
+ Storage
+Update
+A credit card is required to change instance types.
+Add payment information
+High Availability
+Run a standby instance of your database and automatically fail over to it if the primary encounters an issue.
+
+
+Disabled
+Only available for Pro instances and higher.
+See upgrade options
+Connections
+Hostname
+An internal hostname used by your Render services.
+dpg-d8h1bs28pkls73bqa27g-a
+
+Port
+5432
+
+Database
+st_distribuidora
+
+Username
+stadmin
+
+Password
+••••••••••••••••••••••••••••••••
+
+
+Internal Database URL
+•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+
+
+External Database URL
+postgresql://stadmin:Qrp0dM4IHGgtBbnJUwjWjXu2TT3Rb5vH@dpg-d8h1bs28pkls73bqa27g-a.virginia-postgres.render.com/st_distribuidora
+
+
+PSQL Command
+•••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••••
+
+
+Credentials
+Create new default credentials and delete the old ones when ready.
+
+Username
+1
+Password
+
+Open Connections
+
+Created
+stadminDefault	
+••••••••••••
+0	11min	
+
+New default credential
+Networking
+Inbound IP Restrictions
+Limit incoming traffic to your services from specific IP ranges. Sources are specified in CIDR block notation.
+
+1
+IP range is allowed from outside of your private network.
+
+Validate IP address
+0.0.0.0
+Affected by:
+Workspace
+View rules
+Source
+Description
+0.0.0.0/0	everywhere
+Affected by:
+Workspace
+Environment
+View rules
+Source
+Description
+0.0.0.0/0	everywhere
+PostgreSQL Inbound IP Rules
+Source	Description	Delete
+CIDR block
+0.0.0.0/0
+Description
+everywhere
+
+
+Add source
+Cancel
+Save

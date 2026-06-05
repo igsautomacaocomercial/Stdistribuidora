@@ -1,0 +1,380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Ordem de Servico - ST Distribuidora</title>
+<link rel="stylesheet" href="../css/style.css">
+<style>
+/* Print-specific styles */
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 11px; color: #000; background: #fff; }
+
+@page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; }
+
+@media print {
+  .no-print { display: none !important; }
+  .os-page { page-break-after: always; box-shadow: none; border: 2px solid #000 !important; }
+}
+
+.os-page {
+  width: 100%; max-width: 210mm; margin: 0 auto;
+  border: 2px solid #000; padding: 8px 10px; background: #fff;
+}
+
+/* Header */
+.os-header {
+  display: flex; align-items: center; border-bottom: 2px solid #000;
+  padding-bottom: 6px; margin-bottom: 6px;
+}
+.os-header .logo {
+  width: 70px; height: 70px; border: 1px solid #000;
+  display: flex; align-items: center; justify-content: center;
+  margin-right: 10px; font-size: 8px; text-align: center; overflow: hidden;
+}
+.os-header .logo img { max-width: 100%; max-height: 100%; }
+.os-header .header-info { flex: 1; }
+.os-header .header-info h1 { font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
+.os-header .header-info .sub { font-size: 9px; margin-top: 2px; }
+.os-header .os-number { text-align: right; border-left: 2px solid #000; padding-left: 10px; min-width: 110px; }
+.os-header .os-number .label { font-size: 8px; text-transform: uppercase; }
+.os-header .os-number .value { font-size: 22px; font-weight: bold; }
+
+/* Sections */
+.section { border: 1.5px solid #000; margin-bottom: 5px; }
+.section-title { font-weight: bold; text-transform: uppercase; font-size: 9px; background: #000; color: #fff; padding: 2px 6px; letter-spacing: 0.5px; }
+.section-body { padding: 4px 6px; }
+.field-row { display: flex; gap: 8px; margin-bottom: 2px; align-items: baseline; }
+.field-row:last-child { margin-bottom: 0; }
+.field { display: flex; align-items: baseline; gap: 3px; flex: 1; }
+.field .label { font-weight: bold; font-size: 8px; text-transform: uppercase; white-space: nowrap; }
+.field .value { border-bottom: 1px solid #000; min-width: 40px; padding: 0 4px; font-size: 10px; flex: 1; }
+.field .value-full { border-bottom: 1px solid #000; padding: 0 4px; font-size: 10px; flex: 1; }
+
+/* Checklist table */
+.checklist-grid { width: 100%; border-collapse: collapse; }
+.checklist-grid td, .checklist-grid th { border: 1px solid #000; padding: 2px 5px; font-size: 9px; text-align: left; vertical-align: middle; }
+.checklist-grid th { background: #e0e0e0; font-weight: bold; text-transform: uppercase; font-size: 8px; text-align: center; }
+.checklist-grid .item-label { font-weight: bold; }
+.checklist-grid .check-cell { text-align: center; font-weight: bold; font-size: 11px; width: 25px; }
+.check-yes { color: #000; }
+.check-no { color: #999; }
+.checklist-grid .obs-cell { padding: 2px 5px; font-size: 9px; }
+
+/* Chassis SVG section */
+.chassis-grid { display: flex; gap: 8px; margin-top: 4px; }
+.chassis-item { border: 1.5px solid #000; padding: 4px; flex: 1; text-align: center; }
+.chassis-item .chassis-label { font-weight: bold; font-size: 8px; text-transform: uppercase; margin-bottom: 3px; }
+.chassis-item svg { display: block; margin: 0 auto; }
+.chassis-item .chassis-notes { font-size: 7px; margin-top: 3px; border-top: 1px dashed #000; padding-top: 3px; min-height: 16px; text-align: left; }
+
+/* OBS field */
+.obs-field .obs-content {
+  min-height: 60px; padding: 4px 6px;
+  background-image: repeating-linear-gradient(transparent, transparent 16px, #000 16px, #000 17px);
+  line-height: 17px; font-size: 10px; border: 1px solid #000;
+}
+
+/* Footer */
+.os-footer { margin-top: 6px; border-top: 2px solid #000; padding-top: 5px; display: flex; justify-content: space-between; gap: 10px; }
+.signature-block { flex: 1; text-align: center; }
+.signature-block .sig-line { border-top: 1px solid #000; margin-top: 25px; padding-top: 3px; font-size: 8px; text-transform: uppercase; }
+.os-footer .terms { font-size: 7px; text-align: justify; margin-top: 3px; line-height: 1.2; }
+
+.flex { display: flex; }
+.flex-1 { flex: 1; }
+.text-center { text-align: center; }
+.text-small { font-size: 7px; }
+</style>
+</head>
+<body>
+
+<div class="no-print" style="margin:20px;text-align:center;font-family:sans-serif;">
+  <button class="btn btn-primary" onclick="window.print()" style="padding:12px 40px;font-size:16px;">Imprimir OS</button>
+  <p style="margin-top:10px;font-size:12px;">Carregando dados da OS #<span id="loadingOSNum">...</span></p>
+</div>
+
+<div class="os-page" id="osPage">
+  <div class="loading"><div class="spinner"></div><p>Carregando ordem de servico...</p></div>
+</div>
+
+<script>
+async function carregarOS() {
+  const params = new URLSearchParams(window.location.search);
+  const id = params.get('id');
+  if (!id) { document.getElementById('osPage').innerHTML = '<p style="padding:40px;text-align:center;">Parametro "id" nao informado na URL</p>'; return; }
+
+  document.getElementById('loadingOSNum').textContent = id;
+
+  try {
+    const res = await fetch(`/api/ordens/print/${id}`);
+    const json = await res.json();
+    if (!json.success) throw new Error(json.error);
+    renderOS(json.data);
+  } catch (e) {
+    document.getElementById('osPage').innerHTML = `<p style="padding:40px;text-align:center;">Erro: ${e.message}</p>`;
+  }
+}
+
+function fmt(d) { if (!d) return ''; const dt = new Date(d); return dt.toLocaleDateString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }); }
+function fmtShort(d) { if (!d) return ''; const dt = new Date(d); return dt.toLocaleDateString('pt-BR'); }
+function esc(s) { if (!s) return ''; return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+function check(val) {
+  return val === 'OK' || val === true ? '<span class="check-yes">[X]</span>' : '<span class="check-no">[ ]</span>';
+}
+
+function renderOS(os) {
+  const emit = os.emitente || { razao_social: 'ST Distribuidora de Informatica', cnpj: '', nome_fantasia: '' };
+
+  document.getElementById('loadingOSNum').textContent = os.numero_os;
+
+  let html = `
+  <!-- HEADER -->
+  <div class="os-header">
+    <div class="logo">${emit.logotipo ? `<img src="${emit.logotipo}" alt="Logo">` : `<span>LOGO</span>`}</div>
+    <div class="header-info">
+      <h1>${esc(emit.razao_social || 'ST Distribuidora de Informatica')}</h1>
+      <div class="sub">CNPJ: ${esc(emit.cnpj||'')} | ${esc(emit.logradouro||'')}${emit.numero ? ', '+esc(emit.numero):''}${emit.bairro ? ' - '+esc(emit.bairro):''}${emit.cidade ? ' - '+esc(emit.cidade):''}${emit.uf ? '/'+esc(emit.uf):''}${emit.cep ? ' - CEP: '+esc(emit.cep):''}</div>
+      <div class="sub">Tel: ${esc(emit.telefone||'')} | E-mail: ${esc(emit.email||'')}</div>
+    </div>
+    <div class="os-number">
+      <div class="label">Ordem de Servico N.</div>
+      <div class="value">${os.numero_os}</div>
+    </div>
+  </div>
+
+  <!-- CLIENTE -->
+  <div class="section">
+    <div class="section-title">Dados do Cliente</div>
+    <div class="section-body">
+      <div class="field-row">
+        <div class="field" style="flex:2;"><span class="label">Cliente:</span><span class="value-full">${esc(os.cliente_nome)}</span></div>
+        <div class="field"><span class="label">CPF/CNPJ:</span><span class="value">${esc(os.cliente_doc||'')}</span></div>
+      </div>
+      <div class="field-row">
+        <div class="field" style="flex:2;"><span class="label">Endereco:</span><span class="value-full"></span></div>
+        <div class="field"><span class="label">Tel:</span><span class="value">${esc(os.cliente_telefone||'')}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- EQUIPAMENTO -->
+  <div class="section">
+    <div class="section-title">Dados do Equipamento</div>
+    <div class="section-body">
+      <div class="field-row">
+        <div class="field"><span class="label">Marca:</span><span class="value">${esc(os.marca||'')}</span></div>
+        <div class="field"><span class="label">Modelo:</span><span class="value">${esc(os.modelo||'')}</span></div>
+        <div class="field"><span class="label">N/S:</span><span class="value">${esc(os.numero_serie||'')}</span></div>
+      </div>
+      <div class="field-row">
+        <div class="field"><span class="label">Senha BIOS:</span><span class="value">${esc(os.senha_bios||'')}</span></div>
+        <div class="field"><span class="label">Tecnico:</span><span class="value">${esc(os.tecnico_nome||'')}</span></div>
+        <div class="field"><span class="label">Data Entrada:</span><span class="value">${fmt(os.data_entrada)}</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEFEITO E LAUDO -->
+  <div class="section">
+    <div class="section-title">Defeito Relatado / Laudo Tecnico</div>
+    <div class="section-body">
+      <div class="field-row"><div class="field" style="flex:1;"><span class="label">Defeito:</span><span class="value-full">${esc(os.defeito_relatado||'')}</span></div></div>
+      <div class="field-row"><div class="field" style="flex:1;"><span class="label">Laudo:</span><span class="value-full">${esc(os.laudo_tecnico||'')}</span></div></div>
+    </div>
+  </div>
+
+  <!-- CHECKLIST -->
+  <div class="section">
+    <div class="section-title">Checklist de Inspecao</div>
+    <div class="section-body" style="padding:0;">
+      <table class="checklist-grid">
+        <tr><th style="width:35%;">Componente</th><th style="width:15%;">OK</th><th style="width:15%;">Ruim</th><th style="width:35%;">Observacao</th></tr>
+        <tr>
+          <td class="item-label">Tela</td>
+          <td class="check-cell">${os.tela === 'OK' ? check(true) : check(false)}</td>
+          <td class="check-cell">${os.tela !== 'OK' ? check(true) : check(false)}</td>
+          <td class="obs-cell">${os.tela !== 'OK' ? 'Status: '+esc(os.tela) : ''}</td>
+        </tr>
+        <tr>
+          <td class="item-label">Camera</td>
+          <td class="check-cell">${os.camera === 'OK' ? check(true) : check(false)}</td>
+          <td class="check-cell">${os.camera !== 'OK' ? check(true) : check(false)}</td>
+          <td class="obs-cell"></td>
+        </tr>
+        <tr>
+          <td class="item-label">Som / Audio</td>
+          <td class="check-cell">${os.som === 'OK' ? check(true) : check(false)}</td>
+          <td class="check-cell">${os.som !== 'OK' ? check(true) : check(false)}</td>
+          <td class="obs-cell"></td>
+        </tr>
+        <tr>
+          <td class="item-label">Rede RJ45</td>
+          <td class="check-cell">${os.rede_rj45 === 'OK' ? check(true) : check(false)}</td>
+          <td class="check-cell">${os.rede_rj45 !== 'OK' ? check(true) : check(false)}</td>
+          <td class="obs-cell"></td>
+        </tr>
+        <tr>
+          <td class="item-label">Rede WiFi</td>
+          <td class="check-cell">${os.rede_wifi === 'OK' ? check(true) : check(false)}</td>
+          <td class="check-cell">${os.rede_wifi !== 'OK' ? check(true) : check(false)}</td>
+          <td class="obs-cell"></td>
+        </tr>
+        <tr>
+          <td class="item-label">USB</td>
+          <td class="check-cell">${os.usb === 'OK' ? check(true) : check(false)}</td>
+          <td class="check-cell">${os.usb !== 'OK' ? check(true) : check(false)}</td>
+          <td class="obs-cell"></td>
+        </tr>
+        <tr>
+          <td class="item-label">Microfone</td>
+          <td class="check-cell">${os.microfone === 'OK' ? check(true) : check(false)}</td>
+          <td class="check-cell">${os.microfone !== 'OK' ? check(true) : check(false)}</td>
+          <td class="obs-cell"></td>
+        </tr>
+        <tr>
+          <td class="item-label">Touchpad</td>
+          <td class="check-cell">${os.touchpad === 'OK' ? check(true) : check(false)}</td>
+          <td class="check-cell">${os.touchpad !== 'OK' ? check(true) : check(false)}</td>
+          <td class="obs-cell"></td>
+        </tr>
+        <tr>
+          <td colspan="4" style="padding:3px 5px;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td colspan="3" style="font-weight:bold;font-size:9px;border:none;padding:1px 0;">Teclado</td></tr>
+              <tr><td style="border:none;width:30%;">${check(os.teclado === 'OK')} OK</td>
+                  <td style="border:none;width:35%;">${check(os.teclado === 'Faltam Teclas')} Faltam Teclas</td>
+                  <td style="border:none;width:35%;">${check(os.teclado === 'Teclas Nao Funcionam')} Nao Funcionam</td></tr>
+              <tr><td colspan="3" style="border:none;font-size:8px;"><strong>Teclas:</strong> ${esc(os.teclas_especificar||'')}</td></tr>
+            </table>
+          </td>
+        </tr>
+        <tr>
+          <td colspan="4" style="padding:3px 5px;">
+            <table style="width:100%;border-collapse:collapse;">
+              <tr><td colspan="2" style="font-weight:bold;font-size:9px;border:none;padding:1px 0;">Bateria</td></tr>
+              <tr><td style="border:none;width:30%;">${check(os.bateria === 'Sem Bateria')} Sem Bateria</td>
+                  <td style="border:none;width:70%;">${check(os.bateria === 'Com Bateria')} Com Bateria | Autonomia: ${esc(os.tempo_autonomia||'')}</td></tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- SERVICOS / ITENS -->
+  <div class="section">
+    <div class="section-title">Servicos / Produtos</div>
+    <div class="section-body" style="padding:0;">
+      <table class="checklist-grid">
+        <tr><th style="width:5%;">#</th><th style="width:45%;">Descricao</th><th style="width:10%;">Tipo</th><th style="width:8%;">Qtd</th><th style="width:16%;">Valor Unit.</th><th style="width:16%;">Valor Total</th></tr>`;
+        if (os.itens && os.itens.length) {
+          os.itens.forEach((item, i) => {
+            html += `<tr><td class="text-center">${i+1}</td><td>${esc(item.descricao)}</td><td class="text-center">${item.tipo}</td><td class="text-center">${item.quantidade}</td><td class="text-center">R$ ${(+item.valor_unitario).toFixed(2)}</td><td class="text-center">R$ ${(+item.valor_total).toFixed(2)}</td></tr>`;
+          });
+        }
+        html += `<tr style="font-weight:bold;"><td colspan="4" style="text-align:right;padding-right:10px;">STATUS: ${esc(os.status)}</td>
+          <td colspan="2" style="text-align:center;font-size:11px;">TOTAL: R$ ${(+os.valor_total).toFixed(2)}</td></tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- CARCACA VISUAL -->
+  <div class="section">
+    <div class="section-title">Mapeamento de Danos - Carcaca</div>
+    <div class="section-body">
+      <div class="chassis-grid">
+        <div class="chassis-item">
+          <div class="chassis-label">Tampa (Aberto)</div>
+          <svg width="170" height="120" viewBox="0 0 170 120">
+            <rect x="2" y="2" width="166" height="116" fill="none" stroke="#000" stroke-width="1.5"/>
+            <rect x="14" y="10" width="142" height="90" fill="#f0f0f0" stroke="#000" stroke-width="1"/>
+            <line x1="10" y1="106" x2="160" y2="106" stroke="#000" stroke-width="1.5"/>
+            <rect x="20" y="108" width="130" height="8" fill="none" stroke="#000" stroke-width="1" rx="2"/>
+            <text x="85" y="115" font-size="4" text-anchor="middle" fill="#999">ST</text>
+          </svg>
+          <div class="chassis-notes">Danos: ___________________________</div>
+        </div>
+        <div class="chassis-item">
+          <div class="chassis-label">Teclado</div>
+          <svg width="170" height="120" viewBox="0 0 170 120">
+            <rect x="2" y="2" width="166" height="116" fill="none" stroke="#000" stroke-width="1.5"/>
+            <rect x="8" y="6" width="154" height="68" fill="#f5f5f5" stroke="#000" stroke-width="0.8"/>
+            <g stroke="#999" stroke-width="0.3" fill="none">
+              <rect x="11" y="10" width="11" height="9"/><rect x="24" y="10" width="11" height="9"/>
+              <rect x="37" y="10" width="11" height="9"/><rect x="50" y="10" width="11" height="9"/>
+              <rect x="63" y="10" width="11" height="9"/><rect x="76" y="10" width="11" height="9"/>
+              <rect x="89" y="10" width="11" height="9"/><rect x="102" y="10" width="11" height="9"/>
+              <rect x="115" y="10" width="11" height="9"/><rect x="128" y="10" width="11" height="9"/>
+              <rect x="141" y="10" width="17" height="9"/>
+              <rect x="11" y="21" width="15" height="9"/><rect x="28" y="21" width="11" height="9"/>
+              <rect x="41" y="21" width="11" height="9"/><rect x="54" y="21" width="11" height="9"/>
+              <rect x="67" y="21" width="11" height="9"/><rect x="80" y="21" width="11" height="9"/>
+              <rect x="93" y="21" width="11" height="9"/><rect x="106" y="21" width="11" height="9"/>
+              <rect x="119" y="21" width="11" height="9"/><rect x="132" y="21" width="26" height="9"/>
+              <rect x="11" y="32" width="17" height="9"/><rect x="30" y="32" width="11" height="9"/>
+              <rect x="43" y="32" width="11" height="9"/><rect x="56" y="32" width="11" height="9"/>
+              <rect x="69" y="32" width="11" height="9"/><rect x="82" y="32" width="11" height="9"/>
+              <rect x="95" y="32" width="11" height="9"/><rect x="108" y="32" width="11" height="9"/>
+              <rect x="121" y="32" width="11" height="9"/><rect x="134" y="32" width="24" height="9"/>
+              <rect x="11" y="43" width="21" height="9"/><rect x="34" y="43" width="11" height="9"/>
+              <rect x="47" y="43" width="62" height="9"/><rect x="111" y="43" width="11" height="9"/>
+              <rect x="124" y="43" width="11" height="9"/><rect x="137" y="43" width="21" height="9"/>
+              <rect x="11" y="54" width="26" height="9"/><rect x="39" y="54" width="56" height="9"/>
+              <rect x="97" y="54" width="26" height="9"/>
+            </g>
+            <rect x="55" y="80" width="60" height="26" fill="none" stroke="#000" stroke-width="1" rx="3"/>
+            <text x="85" y="96" font-size="4" text-anchor="middle" fill="#999">Touchpad</text>
+          </svg>
+          <div class="chassis-notes">Teclas: ________________________</div>
+        </div>
+        <div class="chassis-item">
+          <div class="chassis-label">Tampa Superior</div>
+          <svg width="170" height="120" viewBox="0 0 170 120">
+            <rect x="2" y="2" width="166" height="116" fill="none" stroke="#000" stroke-width="1.5"/>
+            <rect x="14" y="8" width="142" height="102" fill="#e8e8e8" stroke="#000" stroke-width="1" rx="4"/>
+            <circle cx="85" cy="55" r="14" fill="none" stroke="#ccc" stroke-width="0.8"/>
+            <text x="85" y="59" font-size="7" text-anchor="middle" fill="#aaa">ST</text>
+            <rect x="10" y="112" width="150" height="4" fill="none" stroke="#000" stroke-width="1" rx="1"/>
+          </svg>
+          <div class="chassis-notes">Riscos: _________________________</div>
+        </div>
+      </div>
+      <div style="margin-top:4px;border:1px solid #000;padding:2px 5px;font-size:9px;">
+        <strong>Carcaca:</strong> ${esc(os.carcaca||'')}
+      </div>
+    </div>
+  </div>
+
+  <!-- OBS -->
+  <div class="section obs-field">
+    <div class="section-title">Observacoes</div>
+    <div class="obs-content">${esc(os.observacoes||'')}</div>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="os-footer">
+    <div class="signature-block">
+      <div class="sig-line">Cliente: _____________________________</div>
+      <div class="terms">Declaro ter recebido meu equipamento nas condicoes descritas acima.</div>
+    </div>
+    <div class="signature-block">
+      <div class="sig-line">Tecnico: _____________________________</div>
+      <div class="terms">Atesto que os servicos foram realizados conforme descrito.</div>
+    </div>
+    <div class="signature-block">
+      <div class="sig-line">Data Retirada: ____/____/________</div>
+      <div class="terms">OS valida somente com assinatura.</div>
+    </div>
+  </div>
+  <div class="terms" style="margin-top:3px;font-size:6px;">
+    ${esc(emit.razao_social||'')} - CNPJ: ${esc(emit.cnpj||'')} | Tel: ${esc(emit.telefone||'')} | E-mail: ${esc(emit.email||'')}
+  </div>`;
+
+  document.getElementById('osPage').innerHTML = html;
+}
+
+carregarOS();
+</script>
+</body>
+</html>

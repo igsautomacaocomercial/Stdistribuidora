@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ST Distribuidora - Gestao de OS</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="app">
+  <button class="sidebar-toggle no-print" id="sidebarToggle" onclick="toggleSidebar()">&#9776;</button>
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-brand">ST<small>Distribuidora</small></div>
+    <nav class="sidebar-nav">
+      <a href="#" data-page="dashboard" class="active"><span class="icon">&#9632;</span> Dashboard</a>
+      <a href="#" data-page="ordens"><span class="icon">&#9776;</span> Ordens de Servico</a>
+      <a href="#" data-page="ordem-form"><span class="icon">&#43;</span> Nova OS</a>
+      <a href="#" class="has-submenu" onclick="toggleSubmenu(event)"><span class="icon">&#9776;</span> Cadastros <span class="submenu-arrow">&#9660;</span></a>
+      <div class="submenu" id="submenuCadastros">
+        <a href="#" data-page="clientes">Clientes</a>
+        <a href="#" data-page="tecnicos">Tecnicos</a>
+        <a href="#" data-page="produtos">Produtos</a>
+        <a href="#" data-page="servicos">Servicos</a>
+        <a href="#" data-page="grupos-produtos">Grupos/Categorias</a>
+        <a href="#" data-page="unidades-medida">Unidades de Medida</a>
+      </div>
+      <a href="#" data-page="emitente"><span class="icon">&#9881;</span> Config. Empresa</a>
+    </nav>
+  </aside>
+  <main class="main-content" id="mainContent">
+    <header class="topbar">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <span class="sidebar-toggle-inline no-print" onclick="toggleSidebar()">&#9776;</span>
+        <h2 id="pageTitle">Dashboard</h2>
+      </div>
+      <div class="topbar-actions" id="topbarActions"></div>
+    </header>
+    <div class="content-body" id="contentBody"></div>
+  </main>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this)closeModal()">
+  <div class="modal-content" id="modalContent"></div>
+</div>
+
+<script src="js/api.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

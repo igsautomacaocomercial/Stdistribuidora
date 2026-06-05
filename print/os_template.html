@@ -1,0 +1,780 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Ordem de Servico - ST Distribuidora</title>
+<style>
+/* ==========================================================================
+   FOLHA DE ESTILO - ORDEM DE SERVICO PARA IMPRESSAO
+   Layout vertical, bordas pretas finas, fiel ao modelo fisico
+   ========================================================================== */
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Courier New', 'Lucida Console', monospace;
+    font-size: 11px;
+    line-height: 1.3;
+    color: #000;
+    background: #fff;
+    padding: 0;
+}
+
+/* ==========================================================================
+   CONFIGURACAO DE IMPRESSAO
+   ========================================================================== */
+
+@page {
+    size: A4 portrait;
+    margin: 10mm 12mm 10mm 12mm;
+}
+
+@media print {
+    body { padding: 0; }
+    .no-print { display: none !important; }
+    .os-page { page-break-after: always; box-shadow: none; }
+}
+
+/* ==========================================================================
+   CONTAINER PRINCIPAL
+   ========================================================================== */
+
+.os-page {
+    width: 100%;
+    max-width: 210mm;
+    margin: 0 auto;
+    border: 2px solid #000;
+    padding: 8px 10px;
+    background: #fff;
+}
+
+/* ==========================================================================
+   CABECALHO - EMITENTE (ST DISTRIBUIDORA)
+   ========================================================================== */
+
+.os-header {
+    display: flex;
+    align-items: center;
+    border-bottom: 2px solid #000;
+    padding-bottom: 6px;
+    margin-bottom: 6px;
+}
+
+.os-header .logo {
+    width: 80px;
+    height: 80px;
+    border: 1px solid #000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 10px;
+    font-size: 8px;
+    text-align: center;
+    overflow: hidden;
+}
+
+.os-header .logo img {
+    max-width: 100%;
+    max-height: 100%;
+}
+
+.os-header .header-info {
+    flex: 1;
+}
+
+.os-header .header-info h1 {
+    font-size: 18px;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.os-header .header-info .sub {
+    font-size: 10px;
+    margin-top: 2px;
+}
+
+.os-header .os-number {
+    text-align: right;
+    border-left: 2px solid #000;
+    padding-left: 10px;
+    min-width: 120px;
+}
+
+.os-header .os-number .label {
+    font-size: 8px;
+    text-transform: uppercase;
+}
+
+.os-header .os-number .value {
+    font-size: 24px;
+    font-weight: bold;
+}
+
+/* ==========================================================================
+   SECOES DE DADOS DO CLIENTE E EQUIPAMENTO
+   ========================================================================== */
+
+.section {
+    border: 1.5px solid #000;
+    margin-bottom: 5px;
+}
+
+.section-title {
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 10px;
+    background: #000;
+    color: #fff;
+    padding: 2px 6px;
+    letter-spacing: 0.5px;
+}
+
+.section-body {
+    padding: 4px 6px;
+}
+
+.field-row {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 3px;
+    align-items: baseline;
+}
+
+.field-row:last-child {
+    margin-bottom: 0;
+}
+
+.field {
+    display: flex;
+    align-items: baseline;
+    gap: 3px;
+}
+
+.field .label {
+    font-weight: bold;
+    font-size: 9px;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.field .value {
+    border-bottom: 1px solid #000;
+    min-width: 60px;
+    padding: 0 4px;
+    font-size: 11px;
+    flex: 1;
+}
+
+.field .value-full {
+    border-bottom: 1px solid #000;
+    padding: 0 4px;
+    font-size: 11px;
+    flex: 1;
+}
+
+.field-row .field { flex: 1; }
+
+.field-row .field.wide { flex: 2; }
+
+.field-row .field.small { flex: 0 0 auto; }
+
+/* ==========================================================================
+   CHECKLIST - GRADE DE COMPONENTES
+   ========================================================================== */
+
+.checklist-grid {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.checklist-grid td, .checklist-grid th {
+    border: 1px solid #000;
+    padding: 2px 5px;
+    font-size: 10px;
+    text-align: left;
+    vertical-align: middle;
+}
+
+.checklist-grid th {
+    background: #e0e0e0;
+    font-weight: bold;
+    text-transform: uppercase;
+    font-size: 9px;
+    text-align: center;
+}
+
+.checklist-grid .item-label {
+    font-weight: bold;
+}
+
+.checklist-grid .check-cell {
+    text-align: center;
+    font-weight: bold;
+    font-size: 12px;
+    width: 28px;
+}
+
+.check-mark {
+    font-weight: bold;
+}
+
+.check-yes  { color: #000; }
+.check-no   { color: #000; }
+
+.checklist-grid .obs-cell {
+    padding: 2px 5px;
+    font-size: 10px;
+}
+
+/* Tabela aninhada para teclado com campo de especificar */
+.sub-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.sub-table td {
+    border: none;
+    padding: 1px 3px;
+}
+
+.sub-table .check-cell {
+    width: 22px;
+}
+
+/* ==========================================================================
+   CARCACA - REPRESENTACAO VISUAL
+   ========================================================================== */
+
+.chassis-section {
+    margin-top: 5px;
+}
+
+.chassis-grid {
+    display: flex;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.chassis-item {
+    border: 1.5px solid #000;
+    padding: 6px;
+    flex: 1;
+    text-align: center;
+}
+
+.chassis-item .chassis-label {
+    font-weight: bold;
+    font-size: 9px;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+    text-align: center;
+}
+
+.chassis-item svg {
+    display: block;
+    margin: 0 auto;
+}
+
+.chassis-item .chassis-notes {
+    font-size: 8px;
+    margin-top: 4px;
+    border-top: 1px dashed #000;
+    padding-top: 4px;
+    min-height: 20px;
+}
+
+/* ==========================================================================
+   OBSERVACOES - CAMPO COM LINHAS PONTILHADAS
+   ========================================================================== */
+
+.obs-field {
+    margin-top: 5px;
+}
+
+.obs-field .obs-content {
+    min-height: 70px;
+    padding: 4px 6px;
+    background-image:
+        repeating-linear-gradient(
+            transparent,
+            transparent 18px,
+            #000 18px,
+            #000 19px
+        );
+    line-height: 19px;
+    font-size: 11px;
+    border: 1px solid #000;
+}
+
+/* ==========================================================================
+   RODAPE - TERMOS E ASSINATURAS
+   ========================================================================== */
+
+.os-footer {
+    margin-top: 8px;
+    border-top: 2px solid #000;
+    padding-top: 6px;
+    display: flex;
+    justify-content: space-between;
+    gap: 15px;
+}
+
+.signature-block {
+    flex: 1;
+    text-align: center;
+}
+
+.signature-block .sig-line {
+    border-top: 1px solid #000;
+    margin-top: 30px;
+    padding-top: 4px;
+    font-size: 9px;
+    text-transform: uppercase;
+}
+
+.os-footer .terms {
+    font-size: 7.5px;
+    text-align: justify;
+    margin-top: 4px;
+    line-height: 1.2;
+}
+
+/* ==========================================================================
+   BOTao DE IMPRESSAO (tela)
+   ========================================================================== */
+
+.no-print {
+    text-align: center;
+    margin: 20px 0;
+}
+
+.btn-print {
+    background: #000;
+    color: #fff;
+    border: none;
+    padding: 12px 40px;
+    font-size: 16px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Courier New', monospace;
+}
+
+.btn-print:hover {
+    background: #333;
+}
+
+/* ==========================================================================
+   UTILITARIOS
+   ========================================================================== */
+
+.flex { display: flex; }
+.flex-1 { flex: 1; }
+.gap-2 { gap: 4px; }
+.mt-1 { margin-top: 4px; }
+.mb-1 { margin-bottom: 4px; }
+.text-center { text-align: center; }
+.text-small { font-size: 8px; }
+.border-bottom { border-bottom: 1px solid #000; }
+</style>
+</head>
+<body>
+
+<div class="no-print" style="margin:20px 0;text-align:center;">
+    <button class="btn-print" onclick="window.print()">Imprimir OS</button>
+    <p style="margin-top:10px;font-size:12px;font-family:sans-serif;">
+        <strong>Teclas de atalho:</strong> Ctrl+P (Windows) / Cmd+P (Mac)
+    </p>
+</div>
+
+<div class="os-page">
+    <!-- ============================================================
+         CABECALHO
+         ============================================================ -->
+    <div class="os-header">
+        <div class="logo">
+            <!-- Logo da empresa (base64 ou imagem) -->
+            <span>LOGO</span>
+        </div>
+        <div class="header-info">
+            <h1>ST Distribuidora de Informatica</h1>
+            <div class="sub">
+                CNPJ: 00.000.000/0000-00 | Rua Exemplo, 123 - Centro - Sao Paulo/SP - CEP: 00000-000
+            </div>
+            <div class="sub">
+                Tel: (11) 0000-0000 | Whats: (11) 90000-0000 | E-mail: contato@stdistribuidora.com.br
+            </div>
+        </div>
+        <div class="os-number">
+            <div class="label">Ordem de Servico N.</div>
+            <div class="value">1234</div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         DADOS DO CLIENTE
+         ============================================================ -->
+    <div class="section">
+        <div class="section-title">Dados do Cliente</div>
+        <div class="section-body">
+            <div class="field-row">
+                <div class="field wide">
+                    <span class="label">Cliente:</span>
+                    <span class="value-full">Joao Silva</span>
+                </div>
+                <div class="field">
+                    <span class="label">CPF/CNPJ:</span>
+                    <span class="value">000.000.000-00</span>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field wide">
+                    <span class="label">Endereco:</span>
+                    <span class="value-full">Rua A, 100 - Centro</span>
+                </div>
+                <div class="field small">
+                    <span class="label">Tel:</span>
+                    <span class="value">(11) 90000-0000</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         DADOS DO EQUIPAMENTO
+         ============================================================ -->
+    <div class="section">
+        <div class="section-title">Dados do Equipamento</div>
+        <div class="section-body">
+            <div class="field-row">
+                <div class="field"><span class="label">Marca:</span><span class="value">Dell</span></div>
+                <div class="field"><span class="label">Modelo:</span><span class="value">Inspiron 15 3000</span></div>
+                <div class="field"><span class="label">N/S:</span><span class="value">ABC123XYZ</span></div>
+            </div>
+            <div class="field-row">
+                <div class="field"><span class="label">Senha BIOS:</span><span class="value">********</span></div>
+                <div class="field"><span class="label">Tecnico:</span><span class="value">Carlos</span></div>
+                <div class="field"><span class="label">Data Entrada:</span><span class="value">04/06/2026 09:00</span></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         DEFEITO RELATADO E LAUDO
+         ============================================================ -->
+    <div class="section">
+        <div class="section-title">Defeito Relatado / Laudo Tecnico</div>
+        <div class="section-body">
+            <div class="field-row">
+                <div class="field wide">
+                    <span class="label">Defeito:</span>
+                    <span class="value-full">Notebook nao liga, LED de carga acende mas nao da boot</span>
+                </div>
+            </div>
+            <div class="field-row">
+                <div class="field wide">
+                    <span class="label">Laudo:</span>
+                    <span class="value-full">Placa mae com curto no circuito de alimentacao - necessita solda BGA</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         CHECKLIST - GRADE DE COMPONENTES
+         ============================================================ -->
+    <div class="section">
+        <div class="section-title">Checklist de Inspecao</div>
+        <div class="section-body" style="padding:0;">
+            <table class="checklist-grid">
+                <tr>
+                    <th style="width:40%;">Componente</th>
+                    <th style="width:15%;">OK</th>
+                    <th style="width:15%;">Ruim</th>
+                    <th style="width:30%;">Observacao</th>
+                </tr>
+                <tr>
+                    <td class="item-label">Tela</td>
+                    <td class="check-cell"><span class="check-mark check-yes">[X]</span></td>
+                    <td class="check-cell"><span class="check-mark check-no">[ ]</span></td>
+                    <td class="obs-cell">OK (Esbranquicada / Dead Pixel: Nao)</td>
+                </tr>
+                <tr>
+                    <td class="item-label">Camera</td>
+                    <td class="check-cell"><span class="check-mark check-yes">[X]</span></td>
+                    <td class="check-cell"><span class="check-mark check-no">[ ]</span></td>
+                    <td class="obs-cell"></td>
+                </tr>
+                <tr>
+                    <td class="item-label">Som / Audio</td>
+                    <td class="check-cell"><span class="check-mark check-yes">[X]</span></td>
+                    <td class="check-cell"><span class="check-mark check-no">[ ]</span></td>
+                    <td class="obs-cell"></td>
+                </tr>
+                <tr>
+                    <td class="item-label">Rede RJ45</td>
+                    <td class="check-cell"><span class="check-mark check-no">[ ]</span></td>
+                    <td class="check-cell"><span class="check-mark check-yes">[X]</span></td>
+                    <td class="obs-cell">Conector com mal contato</td>
+                </tr>
+                <tr>
+                    <td class="item-label">Rede WiFi</td>
+                    <td class="check-cell"><span class="check-mark check-yes">[X]</span></td>
+                    <td class="check-cell"><span class="check-mark check-no">[ ]</span></td>
+                    <td class="obs-cell"></td>
+                </tr>
+                <tr>
+                    <td class="item-label">USB</td>
+                    <td class="check-cell"><span class="check-mark check-yes">[X]</span></td>
+                    <td class="check-cell"><span class="check-mark check-no">[ ]</span></td>
+                    <td class="obs-cell"></td>
+                </tr>
+                <tr>
+                    <td class="item-label">Microfone</td>
+                    <td class="check-cell"><span class="check-mark check-yes">[X]</span></td>
+                    <td class="check-cell"><span class="check-mark check-no">[ ]</span></td>
+                    <td class="obs-cell"></td>
+                </tr>
+                <tr>
+                    <td class="item-label">Touchpad</td>
+                    <td class="check-cell"><span class="check-mark check-yes">[X]</span></td>
+                    <td class="check-cell"><span class="check-mark check-no">[ ]</span></td>
+                    <td class="obs-cell"></td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="padding:3px 5px;">
+                        <table class="sub-table" style="width:100%;">
+                            <tr>
+                                <td colspan="4" style="font-weight:bold;font-size:10px;padding:1px 0;">Teclado</td>
+                            </tr>
+                            <tr>
+                                <td style="width:25%;">
+                                    <span class="check-mark check-yes">[X]</span> OK
+                                </td>
+                                <td style="width:35%;">
+                                    <span class="check-mark check-no">[ ]</span> Faltam Teclas
+                                </td>
+                                <td style="width:40%;" colspan="2">
+                                    <span class="check-mark check-no">[ ]</span> Teclas Nao Funcionam
+                                </td>
+                            </tr>
+                            <tr>
+                                <td colspan="4" style="font-size:9px;">
+                                    <strong>Teclas p/ especificar:</strong> _____________________________________
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="padding:3px 5px;">
+                        <table class="sub-table" style="width:100%;">
+                            <tr>
+                                <td colspan="3" style="font-weight:bold;font-size:10px;padding:1px 0;">Bateria</td>
+                            </tr>
+                            <tr>
+                                <td style="width:25%;">
+                                    <span class="check-mark check-yes">[X]</span> Sem Bateria
+                                </td>
+                                <td style="width:35%;">
+                                    <span class="check-mark check-no">[ ]</span> Com Bateria
+                                </td>
+                                <td style="width:40%;">
+                                    <strong>Autonomia:</strong> ______________
+                                </td>
+                            </tr>
+                        </table>
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         SERVICOS / VALORES
+         ============================================================ -->
+    <div class="section">
+        <div class="section-title">Servicos / Produtos</div>
+        <div class="section-body" style="padding:0;">
+            <table class="checklist-grid">
+                <tr>
+                    <th style="width:5%;">#</th>
+                    <th style="width:45%;">Descricao</th>
+                    <th style="width:10%;">Tipo</th>
+                    <th style="width:10%;">Qtd</th>
+                    <th style="width:15%;">Valor Unit.</th>
+                    <th style="width:15%;">Valor Total</th>
+                </tr>
+                <tr>
+                    <td class="text-center">1</td>
+                    <td>Formatacao c/ Instalacao Windows</td>
+                    <td class="text-center">Servico</td>
+                    <td class="text-center">1</td>
+                    <td class="text-center">R$ 120,00</td>
+                    <td class="text-center">R$ 120,00</td>
+                </tr>
+                <tr>
+                    <td class="text-center">2</td>
+                    <td>Limpeza Interna Preventiva</td>
+                    <td class="text-center">Servico</td>
+                    <td class="text-center">1</td>
+                    <td class="text-center">R$ 80,00</td>
+                    <td class="text-center">R$ 80,00</td>
+                </tr>
+                <tr>
+                    <td class="text-center">3</td>
+                    <td>SSD 240GB</td>
+                    <td class="text-center">Produto</td>
+                    <td class="text-center">1</td>
+                    <td class="text-center">R$ 189,90</td>
+                    <td class="text-center">R$ 189,90</td>
+                </tr>
+                <tr style="font-weight:bold;">
+                    <td colspan="4" style="text-align:right;padding-right:10px;">
+                        STATUS: <span style="text-transform:uppercase;">Em Manutencao</span>
+                    </td>
+                    <td colspan="2" style="text-align:center;font-size:12px;">
+                        TOTAL: R$ 389,90
+                    </td>
+                </tr>
+            </table>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         REPRESENTACAO VISUAL DA CARCACA
+         ============================================================ -->
+    <div class="section chassis-section">
+        <div class="section-title">Mapeamento de Danos - Carcaca</div>
+        <div class="section-body">
+            <div class="chassis-grid">
+                <!-- TAMPA (NOTEBOOK ABERTO) -->
+                <div class="chassis-item">
+                    <div class="chassis-label">Tampa (Aberto)</div>
+                    <svg width="180" height="130" viewBox="0 0 180 130">
+                        <!-- Moldura externa -->
+                        <rect x="2" y="2" width="176" height="126" fill="none" stroke="#000" stroke-width="1.5"/>
+                        <!-- Tela interna -->
+                        <rect x="15" y="10" width="150" height="100" fill="#f0f0f0" stroke="#000" stroke-width="1"/>
+                        <!-- Dobra central -->
+                        <line x1="10" y1="114" x2="170" y2="114" stroke="#000" stroke-width="1.5"/>
+                        <!-- Borda inferior (base) -->
+                        <rect x="20" y="116" width="140" height="10" fill="none" stroke="#000" stroke-width="1" rx="2"/>
+                        <!-- Logo central na moldura inferior -->
+                        <text x="90" y="124" font-size="5" text-anchor="middle" fill="#999">ST</text>
+                    </svg>
+                    <div class="chassis-notes">Danos na tampa: ___________________________</div>
+                </div>
+
+                <!-- TECLADO (NOTEBOOK ABERTO) -->
+                <div class="chassis-item">
+                    <div class="chassis-label">Teclado</div>
+                    <svg width="180" height="130" viewBox="0 0 180 130">
+                        <!-- Base do teclado -->
+                        <rect x="2" y="2" width="176" height="126" fill="none" stroke="#000" stroke-width="1.5"/>
+                        <!-- Borda do teclado -->
+                        <rect x="8" y="8" width="164" height="75" fill="#f5f5f5" stroke="#000" stroke-width="0.8"/>
+                        <!-- Fileiras de teclas (representacao) -->
+                        <g stroke="#999" stroke-width="0.3" fill="none">
+                            <!-- Fileira 1 -->
+                            <rect x="12" y="12" width="12" height="10"/><rect x="26" y="12" width="12" height="10"/>
+                            <rect x="40" y="12" width="12" height="10"/><rect x="54" y="12" width="12" height="10"/>
+                            <rect x="68" y="12" width="12" height="10"/><rect x="82" y="12" width="12" height="10"/>
+                            <rect x="96" y="12" width="12" height="10"/><rect x="110" y="12" width="12" height="10"/>
+                            <rect x="124" y="12" width="12" height="10"/><rect x="138" y="12" width="12" height="10"/>
+                            <rect x="152" y="12" width="16" height="10"/>
+                            <!-- Fileira 2 -->
+                            <rect x="12" y="24" width="16" height="10"/><rect x="30" y="24" width="12" height="10"/>
+                            <rect x="44" y="24" width="12" height="10"/><rect x="58" y="24" width="12" height="10"/>
+                            <rect x="72" y="24" width="12" height="10"/><rect x="86" y="24" width="12" height="10"/>
+                            <rect x="100" y="24" width="12" height="10"/><rect x="114" y="24" width="12" height="10"/>
+                            <rect x="128" y="24" width="12" height="10"/><rect x="142" y="24" width="26" height="10"/>
+                            <!-- Fileira 3 -->
+                            <rect x="12" y="36" width="18" height="10"/><rect x="32" y="36" width="12" height="10"/>
+                            <rect x="46" y="36" width="12" height="10"/><rect x="60" y="36" width="12" height="10"/>
+                            <rect x="74" y="36" width="12" height="10"/><rect x="88" y="36" width="12" height="10"/>
+                            <rect x="102" y="36" width="12" height="10"/><rect x="116" y="36" width="12" height="10"/>
+                            <rect x="130" y="36" width="12" height="10"/><rect x="144" y="36" width="24" height="10"/>
+                            <!-- Fileira 4 -->
+                            <rect x="12" y="48" width="22" height="10"/><rect x="36" y="48" width="12" height="10"/>
+                            <rect x="50" y="48" width="66" height="10"/><rect x="118" y="48" width="12" height="10"/>
+                            <rect x="132" y="48" width="12" height="10"/><rect x="146" y="48" width="22" height="10"/>
+                            <!-- Fileira 5 (espaco) -->
+                            <rect x="12" y="60" width="28" height="10"/><rect x="42" y="60" width="60" height="10"/>
+                            <rect x="104" y="60" width="28" height="10"/>
+                        </g>
+                        <!-- Touchpad -->
+                        <rect x="60" y="90" width="60" height="28" fill="none" stroke="#000" stroke-width="1" rx="3"/>
+                        <text x="90" y="108" font-size="5" text-anchor="middle" fill="#999">Touchpad</text>
+                    </svg>
+                    <div class="chassis-notes">Teclas danificadas: ________________________</div>
+                </div>
+
+                <!-- TAMPA SUPERIOR (NOTEBOOK FECHADO) -->
+                <div class="chassis-item">
+                    <div class="chassis-label">Tampa Superior</div>
+                    <svg width="180" height="130" viewBox="0 0 180 130">
+                        <!-- Moldura -->
+                        <rect x="2" y="2" width="176" height="126" fill="none" stroke="#000" stroke-width="1.5"/>
+                        <!-- Tampa externa -->
+                        <rect x="15" y="8" width="150" height="112" fill="#e8e8e8" stroke="#000" stroke-width="1" rx="5"/>
+                        <!-- Logo central -->
+                        <circle cx="90" cy="60" r="15" fill="none" stroke="#ccc" stroke-width="0.8"/>
+                        <text x="90" y="64" font-size="8" text-anchor="middle" fill="#aaa">ST</text>
+                        <!-- Dobradeira inferior -->
+                        <rect x="10" y="120" width="160" height="6" fill="none" stroke="#000" stroke-width="1" rx="2"/>
+                    </svg>
+                    <div class="chassis-notes">Riscos/amassados: _________________________</div>
+                </div>
+            </div>
+            <div style="margin-top:6px;border:1px solid #000;padding:3px 6px;font-size:10px;">
+                <strong>Observacoes sobre a carcaca:</strong>
+                <span style="border-bottom:1px solid #000;padding:0 4px;min-width:300px;display:inline-block;">
+                    Arranhao na quina inferior direita, adesivo de garantia rompido
+                </span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============================================================
+         OBSERVACOES
+         ============================================================ -->
+    <div class="obs-field">
+        <div class="section-title">Observacoes</div>
+        <div class="obs-content">
+            Cliente solicitou backup previamente. Prazo estimado: 3 dias uteis.<br>
+            Favor nao formatar sem autorizacao previa do cliente.
+        </div>
+    </div>
+
+    <!-- ============================================================
+         RODAPE - ASSINATURAS E TERMOS
+         ============================================================ -->
+    <div class="os-footer">
+        <div class="signature-block">
+            <div class="sig-line">Cliente: _____________________________</div>
+            <div class="terms">Declaro ter recebido meu equipamento nas condicoes descritas acima.</div>
+        </div>
+        <div class="signature-block">
+            <div class="sig-line">Tecnico: _____________________________</div>
+            <div class="terms">Atesto que os servicos foram realizados conforme descrito.</div>
+        </div>
+        <div class="signature-block">
+            <div class="sig-line">Data Retirada: ____/____/________</div>
+            <div class="terms">OS valida somente com assinatura e carimbo.</div>
+        </div>
+    </div>
+    <div class="terms" style="margin-top:4px;font-size:7px;">
+        ST Distribuidora de Informatica - CNPJ: 00.000.000/0000-00 - Rua Exemplo, 123 - Centro - Sao Paulo/SP
+        | Tel: (11) 0000-0000 | E-mail: contato@stdistribuidora.com.br
+    </div>
+</div>
+
+<script>
+    // Impressao automatica ao carregar (opcional - remover se nao desejar)
+    // window.onload = function() { window.print(); };
+</script>
+
+</body>
+</html>
