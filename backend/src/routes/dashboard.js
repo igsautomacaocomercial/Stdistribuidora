@@ -21,8 +21,15 @@ router.get('/', async (req, res) => {
         tecnicos_top: tecnicosTop.rows,
         faturamento_mensal: faturamentoMensal.rows
       }
-    });
-  } catch (e) { res.status(500).json({ success: false, error: e.message }); }
+     });
+   } catch (e) {
+  console.error('ERRO DASHBOARD:', e);
+  res.status(500).json({
+    success: false,
+    error: e.message || e.toString(),
+    detail: e
+  });
+}
 });
 
 // GET /api/dashboard/reports?data_inicio=&data_fim=
