@@ -7,6 +7,18 @@ const pageTitle = $('pageTitle');
 const contentBody = $('contentBody');
 const topbarActions = $('topbarActions');
 
+// Auth check
+const currentUser = JSON.parse(sessionStorage.getItem('user'));
+if (!currentUser) {
+  window.location.href = 'login.html';
+}
+
+function logout() {
+  sessionStorage.removeItem('user');
+  sessionStorage.removeItem('userName');
+  window.location.href = 'login.html';
+}
+
 function setTitle(t) { pageTitle.textContent = t; }
 
 function html(literals, ...vals) {
@@ -2029,5 +2041,12 @@ window.reativarServico = async function(id) {
 // ============================================================================
 // INIT
 // ============================================================================
+
+// Show user info
+const userInfo = $('userInfo');
+if (userInfo && currentUser) {
+  const nivelLabel = { admin: 'Admin', supervisor: 'Supervisor', operador: 'Operador' };
+  userInfo.innerHTML = `<span class="user-badge">${escape(currentUser.nome)}</span>`;
+}
 
 navigate('dashboard');

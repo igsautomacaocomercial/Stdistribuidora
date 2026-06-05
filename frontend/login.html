@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ST Distribuidora - Login</title>
+<link rel="stylesheet" href="css/login.css">
+</head>
+<body>
+<div class="login-container">
+  <div class="login-card">
+    <div class="login-logo">
+      <img src="logo.png" alt="ST Distribuidora" class="logo-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+      <div class="logo-icon" style="display:none">ST</div>
+    </div>
+    <h1 class="login-title">ST Distribuidora</h1>
+    <p class="login-subtitle">Seja bem vindo a ST Distribuidora</p>
+
+    <form id="loginForm" class="login-form" autocomplete="off">
+      <div class="input-group">
+        <label for="username">Usuário</label>
+        <input type="text" id="username" placeholder="Digite seu usuário" required autofocus>
+      </div>
+      <div class="input-group">
+        <label for="password">Senha</label>
+        <input type="password" id="password" placeholder="Digite sua senha" required>
+      </div>
+      <div class="login-error" id="loginError"></div>
+      <button type="submit" class="login-btn" id="loginBtn">
+        <span class="btn-text">Entrar</span>
+        <span class="btn-loader"></span>
+      </button>
+    </form>
+  </div>
+  <p class="login-footer">ST Distribuidora &copy; 2026 - Sistema de Gestão de OS</p>
+</div>
+<script src="js/login.js"></script>
+</body>
+</html>

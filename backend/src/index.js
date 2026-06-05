@@ -30,6 +30,9 @@ app.use('/api/servicos', require('./routes/servicos'));
 // Print route (HTML page)
 app.use('/print', require('./routes/print'));
 
+// Auth route
+app.use('/api', require('./routes/auth'));
+
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

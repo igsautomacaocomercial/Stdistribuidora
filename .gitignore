@@ -5,3 +5,8 @@ logs
 *.log
 backend/server.log
 backend/server.err
+
+# Temp scripts
+seed-*.js
+check-*.js
+criar-*.js
