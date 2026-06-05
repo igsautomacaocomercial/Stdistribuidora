@@ -7,43 +7,46 @@
 <style>
 /* Print-specific styles */
 * { margin: 0; padding: 0; box-sizing: border-box; }
-body { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 11px; color: #000; background: #fff; }
+body { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 9px; color: #000; background: #fff; }
 
-@page { size: A4 portrait; margin: 5mm 8mm 5mm 8mm; }
+@page { size: A4 portrait; margin: 3mm 5mm 3mm 5mm; }
 
 @media print {
   .no-print { display: none !important; }
-  .os-page { box-shadow: none; border: 2px solid #000 !important; }
+  .os-page { box-shadow: none; border: 1px solid #000 !important; }
   .section { page-break-inside: avoid; }
+  body { font-size: 9px; }
 }
 
 .os-page {
-  width: 100%; max-width: 210mm; margin: 0 auto;
-  border: 2px solid #000; padding: 5px 8px; background: #fff;
+  width: 100%; max-width: 100%; margin: 0 auto;
+  border: 1px solid #000; padding: 4px 5px; background: #fff; box-sizing: border-box;
+  overflow: hidden;
 }
+.os-page table { table-layout: fixed; word-wrap: break-word; }
 
 /* Header */
 .os-header {
-  display: flex; align-items: center; border-bottom: 2px solid #000;
-  padding-bottom: 4px; margin-bottom: 4px;
+  display: flex; align-items: center; border-bottom: 1px solid #000;
+  padding-bottom: 3px; margin-bottom: 3px;
 }
 .os-header .logo {
-  width: 55px; height: 55px; border: 1px solid #000;
+  width: 45px; height: 45px; border: 1px solid #000;
   display: flex; align-items: center; justify-content: center;
-  margin-right: 8px; font-size: 7px; text-align: center; overflow: hidden;
+  margin-right: 6px; font-size: 6px; text-align: center; overflow: hidden; flex-shrink: 0;
 }
 .os-header .logo img { max-width: 100%; max-height: 100%; }
 .os-header .header-info { flex: 1; }
-.os-header .header-info h1 { font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
-.os-header .header-info .sub { font-size: 8px; margin-top: 1px; }
-.os-header .os-number { text-align: right; border-left: 2px solid #000; padding-left: 8px; min-width: 95px; }
-.os-header .os-number .label { font-size: 7px; text-transform: uppercase; }
-.os-header .os-number .value { font-size: 18px; font-weight: bold; }
+.os-header .header-info h1 { font-size: 11px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.3px; }
+.os-header .header-info .sub { font-size: 7px; margin-top: 0; }
+.os-header .os-number { text-align: right; border-left: 1px solid #000; padding-left: 6px; min-width: 80px; }
+.os-header .os-number .label { font-size: 6px; text-transform: uppercase; }
+.os-header .os-number .value { font-size: 16px; font-weight: bold; }
 
 /* Sections */
-.section { border: 1.5px solid #000; margin-bottom: 3px; }
-.section-title { font-weight: bold; text-transform: uppercase; font-size: 8px; background: #000; color: #fff; padding: 1px 5px; letter-spacing: 0.3px; }
-.section-body { padding: 3px 5px; }
+.section { border: 1px solid #000; margin-bottom: 2px; }
+.section-title { font-weight: bold; text-transform: uppercase; font-size: 7px; background: #000; color: #fff; padding: 1px 4px; letter-spacing: 0.2px; }
+.section-body { padding: 2px 4px; }
 .field-row { display: flex; gap: 6px; margin-bottom: 1px; align-items: baseline; }
 .field-row:last-child { margin-bottom: 0; }
 .field { display: flex; align-items: baseline; gap: 2px; flex: 1; }
@@ -65,7 +68,7 @@ body { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 11px;
 .chassis-grid { display: flex; gap: 4px; margin-top: 2px; }
 .chassis-item { border: 1.5px solid #000; padding: 2px; flex: 1; text-align: center; }
 .chassis-item .chassis-label { font-weight: bold; font-size: 7px; text-transform: uppercase; margin-bottom: 1px; }
-.chassis-item svg { display: block; margin: 0 auto; max-height: 85px; }
+.chassis-item svg { display: block; margin: 0 auto; max-height: 70px; width: 100%; }
 .chassis-item .chassis-notes { font-size: 6px; margin-top: 2px; border-top: 1px dashed #000; padding-top: 2px; min-height: 12px; text-align: left; }
 
 /* OBS field */
@@ -76,10 +79,10 @@ body { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 11px;
 }
 
 /* Footer */
-.os-footer { margin-top: 4px; border-top: 2px solid #000; padding-top: 3px; display: flex; justify-content: space-between; gap: 6px; }
+.os-footer { margin-top: 3px; border-top: 1px solid #000; padding-top: 2px; display: flex; justify-content: space-between; gap: 4px; }
 .signature-block { flex: 1; text-align: center; }
-.signature-block .sig-line { border-top: 1px solid #000; margin-top: 18px; padding-top: 2px; font-size: 7px; text-transform: uppercase; }
-.os-footer .terms { font-size: 6px; text-align: justify; margin-top: 2px; line-height: 1.1; }
+.signature-block .sig-line { border-top: 1px solid #000; margin-top: 14px; padding-top: 1px; font-size: 6px; text-transform: uppercase; }
+.os-footer .terms { font-size: 5px; text-align: justify; margin-top: 1px; line-height: 1; }
 
 .flex { display: flex; }
 .flex-1 { flex: 1; }
