@@ -1323,7 +1323,7 @@ async function renderOrdemDetail(id) {
     </div>
     <div class="card">
       <div class="card-title">Laudo Tecnico</div>
-      <p>${escape(os.laudo_tecnico||'Aguardando laudo')}</p>
+      <div style="background:#f8f9fa;border:1px solid var(--border);border-radius:6px;padding:10px;margin-top:4px;min-height:50px;white-space:pre-wrap;font-size:13px;line-height:1.5;">${escape(os.laudo_tecnico||'Aguardando laudo')}</div>
       <div style="margin-top:8px;"><button class="btn btn-outline btn-sm no-print" onclick="editarLaudo(${id})">Editar Laudo</button></div>
     </div>
   </div>
@@ -1519,10 +1519,25 @@ window.removerItemOS = async function(osId, itemId) {
 };
 
 window.editarLaudo = async function(id) {
-  const laudo = prompt('Laudo Tecnico:');
-  if (laudo === null) return;
+  try {
+    const res = await API.get(`/ordens/${id}`);
+    const atual = res.data.laudo_tecnico || '';
+    openModal(`<h3>Laudo Tecnico</h3>
+      <textarea class="form-control" id="edtLaudo" rows="10" style="width:100%;min-height:200px;font-size:14px;line-height:1.5;">${escape(atual)}</textarea>
+      <div class="form-actions" style="margin-top:12px;">
+        <button class="btn btn-primary" onclick="salvarLaudo(${id})">Salvar</button>
+        <button class="btn btn-outline" onclick="closeModal()">Cancelar</button>
+      </div>`);
+    setTimeout(() => document.getElementById('edtLaudo').focus(), 200);
+  } catch (e) { toast(e.message, 'danger'); }
+};
+
+window.salvarLaudo = async function(id) {
+  const laudo = document.getElementById('edtLaudo').value;
   try {
     await API.put(`/ordens/${id}`, { laudo_tecnico: laudo });
+    closeModal();
+    toast('Laudo atualizado!', 'success');
     renderOrdemDetail(id);
   } catch (e) { toast(e.message, 'danger'); }
 };
@@ -2179,6 +2194,7 @@ async function renderOrdemForm(editId) {
       <div class="form-group"><label>Localizacao</label><input class="form-control" id="os_localizacao" placeholder="Ex: Prat. A2, B9..." autocomplete="off"></div>
     </div>
     <div class="form-group"><label>Defeito Relatado</label><textarea class="form-control" id="os_defeito" rows="3"></textarea></div>
+    <div class="form-group"><label>Laudo Tecnico</label><textarea class="form-control" id="os_laudo" rows="4" placeholder="Descreva o diagnostico e servicos realizados..."></textarea></div>
     <div class="form-actions">
       <button class="btn btn-primary" onclick="salvarOS(${editId || 'null'})">Salvar OS</button>
       <button class="btn btn-outline" onclick="navigate('ordens')">Cancelar</button>
@@ -2186,6 +2202,21 @@ async function renderOrdemForm(editId) {
   </div>`;
 
   contentBody.innerHTML = html;
+
+  // Se for edicao, carregar dados
+  if (editId) {
+    try {
+      const res = await API.get(`/ordens/${editId}`);
+      const os = res.data;
+      $('os_marca').value = os.marca || '';
+      $('os_modelo').value = os.modelo || '';
+      $('os_numero_serie').value = os.numero_serie || '';
+      $('os_senha_bios').value = os.senha_bios || '';
+      $('os_localizacao').value = os.localizacao || '';
+      $('os_defeito').value = os.defeito_relatado || '';
+      $('os_laudo').value = os.laudo_tecnico || '';
+    } catch (e) {}
+  }
 }
 
 window.salvarOS = async function(editId) {
@@ -2201,10 +2232,11 @@ window.salvarOS = async function(editId) {
       numero_serie: $('os_numero_serie').value,
       senha_bios: $('os_senha_bios').value,
       localizacao: $('os_localizacao').value,
-      defeito_relatado: $('os_defeito').value
+      defeito_relatado: $('os_defeito').value,
+      laudo_tecnico: $('os_laudo').value
     };
 
-    const res = await API.post('/ordens', body);
+    const res = editId ? await API.put(`/ordens/${editId}`, body) : await API.post('/ordens', body);
     $('formAlert').innerHTML = alertBox('success', `OS #${res.data.numero_os} criada!`);
     setTimeout(() => navigate('ordem-detail', res.data.id), 1000);
   } catch (e) { $('formAlert').innerHTML = alertBox('danger', 'Erro: ' + e.message); }
