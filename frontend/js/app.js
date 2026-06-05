@@ -752,11 +752,6 @@ async function renderOrcamentoDetail(id) {
     </div>
   </div>
 
-  ${o.defeito_relatado ? `<div class="card">
-    <div class="card-title">Defeito Relatado</div>
-    <p>${escape(o.defeito_relatado)}</p>
-  </div>` : ''}
-
   <div class="card">
     <div class="card-title">Itens do Orcamento</div>
     <div class="table-wrap"><table>
@@ -815,7 +810,7 @@ async function renderOrcamentoForm(editId) {
     API.get('/tecnicos?status=Ativo')
   ]);
 
-  let orc = { cliente_id: '', tecnico_id: '', data_orcamento: todayISO(), validade_orcamento: '', equipamento_marca: '', equipamento_modelo: '', numero_serie: '', defeito_relatado: '', observacoes: '', desconto_tipo: 'Valor', desconto_valor: 0, forma_pagamento: '', prazo_entrega: '', garantia: '', itens: [] };
+  let orc = { cliente_id: '', tecnico_id: '', data_orcamento: todayISO(), validade_orcamento: '', equipamento_marca: '', equipamento_modelo: '', numero_serie: '', observacoes: '', desconto_tipo: 'Valor', desconto_valor: 0, forma_pagamento: '', prazo_entrega: '', garantia: '', itens: [] };
 
   if (editId) {
     try {
@@ -855,7 +850,7 @@ async function renderOrcamentoForm(editId) {
       <div class="form-group"><label>Modelo</label><input class="form-control" id="orc_modelo" value="${escape(orc.equipamento_modelo)}"></div>
       <div class="form-group"><label>N/S</label><input class="form-control" id="orc_ns" value="${escape(orc.numero_serie)}"></div>
     </div>
-    <div class="form-group"><label>Defeito Relatado</label><textarea class="form-control" id="orc_defeito" rows="2">${escape(orc.defeito_relatado)}</textarea></div>
+
 
     <div class="card-title" style="margin-top:16px;">Itens do Orcamento</div>
     <div class="search-bar" style="margin-bottom:8px;">
@@ -1118,7 +1113,6 @@ window.salvarOrcamento = async function(editId) {
       equipamento_marca: $('orc_marca').value,
       equipamento_modelo: $('orc_modelo').value,
       numero_serie: $('orc_ns').value,
-      defeito_relatado: $('orc_defeito').value,
       observacoes: $('orc_obs').value,
       desconto_tipo: descTipo,
       desconto_valor: descValor,
