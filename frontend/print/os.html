@@ -9,76 +9,77 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { font-family: 'Courier New', 'Lucida Console', monospace; font-size: 11px; color: #000; background: #fff; }
 
-@page { size: A4 portrait; margin: 8mm 10mm 8mm 10mm; }
+@page { size: A4 portrait; margin: 5mm 8mm 5mm 8mm; }
 
 @media print {
   .no-print { display: none !important; }
-  .os-page { page-break-after: always; box-shadow: none; border: 2px solid #000 !important; }
+  .os-page { box-shadow: none; border: 2px solid #000 !important; }
+  .section { page-break-inside: avoid; }
 }
 
 .os-page {
   width: 100%; max-width: 210mm; margin: 0 auto;
-  border: 2px solid #000; padding: 8px 10px; background: #fff;
+  border: 2px solid #000; padding: 5px 8px; background: #fff;
 }
 
 /* Header */
 .os-header {
   display: flex; align-items: center; border-bottom: 2px solid #000;
-  padding-bottom: 6px; margin-bottom: 6px;
+  padding-bottom: 4px; margin-bottom: 4px;
 }
 .os-header .logo {
-  width: 70px; height: 70px; border: 1px solid #000;
+  width: 55px; height: 55px; border: 1px solid #000;
   display: flex; align-items: center; justify-content: center;
-  margin-right: 10px; font-size: 8px; text-align: center; overflow: hidden;
+  margin-right: 8px; font-size: 7px; text-align: center; overflow: hidden;
 }
 .os-header .logo img { max-width: 100%; max-height: 100%; }
 .os-header .header-info { flex: 1; }
-.os-header .header-info h1 { font-size: 16px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; }
-.os-header .header-info .sub { font-size: 9px; margin-top: 2px; }
-.os-header .os-number { text-align: right; border-left: 2px solid #000; padding-left: 10px; min-width: 110px; }
-.os-header .os-number .label { font-size: 8px; text-transform: uppercase; }
-.os-header .os-number .value { font-size: 22px; font-weight: bold; }
+.os-header .header-info h1 { font-size: 13px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; }
+.os-header .header-info .sub { font-size: 8px; margin-top: 1px; }
+.os-header .os-number { text-align: right; border-left: 2px solid #000; padding-left: 8px; min-width: 95px; }
+.os-header .os-number .label { font-size: 7px; text-transform: uppercase; }
+.os-header .os-number .value { font-size: 18px; font-weight: bold; }
 
 /* Sections */
-.section { border: 1.5px solid #000; margin-bottom: 5px; }
-.section-title { font-weight: bold; text-transform: uppercase; font-size: 9px; background: #000; color: #fff; padding: 2px 6px; letter-spacing: 0.5px; }
-.section-body { padding: 4px 6px; }
-.field-row { display: flex; gap: 8px; margin-bottom: 2px; align-items: baseline; }
+.section { border: 1.5px solid #000; margin-bottom: 3px; }
+.section-title { font-weight: bold; text-transform: uppercase; font-size: 8px; background: #000; color: #fff; padding: 1px 5px; letter-spacing: 0.3px; }
+.section-body { padding: 3px 5px; }
+.field-row { display: flex; gap: 6px; margin-bottom: 1px; align-items: baseline; }
 .field-row:last-child { margin-bottom: 0; }
-.field { display: flex; align-items: baseline; gap: 3px; flex: 1; }
-.field .label { font-weight: bold; font-size: 8px; text-transform: uppercase; white-space: nowrap; }
-.field .value { border-bottom: 1px solid #000; min-width: 40px; padding: 0 4px; font-size: 10px; flex: 1; }
-.field .value-full { border-bottom: 1px solid #000; padding: 0 4px; font-size: 10px; flex: 1; }
+.field { display: flex; align-items: baseline; gap: 2px; flex: 1; }
+.field .label { font-weight: bold; font-size: 7px; text-transform: uppercase; white-space: nowrap; }
+.field .value { border-bottom: 1px solid #000; min-width: 35px; padding: 0 3px; font-size: 9px; flex: 1; }
+.field .value-full { border-bottom: 1px solid #000; padding: 0 3px; font-size: 9px; flex: 1; }
 
 /* Checklist table */
 .checklist-grid { width: 100%; border-collapse: collapse; }
-.checklist-grid td, .checklist-grid th { border: 1px solid #000; padding: 2px 5px; font-size: 9px; text-align: left; vertical-align: middle; }
-.checklist-grid th { background: #e0e0e0; font-weight: bold; text-transform: uppercase; font-size: 8px; text-align: center; }
+.checklist-grid td, .checklist-grid th { border: 1px solid #000; padding: 1px 4px; font-size: 8px; text-align: left; vertical-align: middle; }
+.checklist-grid th { background: #e0e0e0; font-weight: bold; text-transform: uppercase; font-size: 7px; text-align: center; }
 .checklist-grid .item-label { font-weight: bold; }
-.checklist-grid .check-cell { text-align: center; font-weight: bold; font-size: 11px; width: 25px; }
+.checklist-grid .check-cell { text-align: center; font-weight: bold; font-size: 10px; width: 20px; }
 .check-yes { color: #000; }
 .check-no { color: #999; }
-.checklist-grid .obs-cell { padding: 2px 5px; font-size: 9px; }
+.checklist-grid .obs-cell { padding: 1px 4px; font-size: 8px; }
 
 /* Chassis SVG section */
-.chassis-grid { display: flex; gap: 8px; margin-top: 4px; }
-.chassis-item { border: 1.5px solid #000; padding: 4px; flex: 1; text-align: center; }
-.chassis-item .chassis-label { font-weight: bold; font-size: 8px; text-transform: uppercase; margin-bottom: 3px; }
-.chassis-item svg { display: block; margin: 0 auto; }
-.chassis-item .chassis-notes { font-size: 7px; margin-top: 3px; border-top: 1px dashed #000; padding-top: 3px; min-height: 16px; text-align: left; }
+.chassis-grid { display: flex; gap: 4px; margin-top: 2px; }
+.chassis-item { border: 1.5px solid #000; padding: 2px; flex: 1; text-align: center; }
+.chassis-item .chassis-label { font-weight: bold; font-size: 7px; text-transform: uppercase; margin-bottom: 1px; }
+.chassis-item svg { display: block; margin: 0 auto; max-height: 85px; }
+.chassis-item .chassis-notes { font-size: 6px; margin-top: 2px; border-top: 1px dashed #000; padding-top: 2px; min-height: 12px; text-align: left; }
 
 /* OBS field */
 .obs-field .obs-content {
-  min-height: 60px; padding: 4px 6px;
-  background-image: repeating-linear-gradient(transparent, transparent 16px, #000 16px, #000 17px);
-  line-height: 17px; font-size: 10px; border: 1px solid #000;
+  min-height: 40px; padding: 2px 5px;
+  background-image: repeating-linear-gradient(transparent, transparent 14px, #000 14px, #000 15px);
+  line-height: 15px; font-size: 9px; border: 1px solid #000;
 }
 
 /* Footer */
-.os-footer { margin-top: 6px; border-top: 2px solid #000; padding-top: 5px; display: flex; justify-content: space-between; gap: 10px; }
+.os-footer { margin-top: 4px; border-top: 2px solid #000; padding-top: 3px; display: flex; justify-content: space-between; gap: 6px; }
 .signature-block { flex: 1; text-align: center; }
-.signature-block .sig-line { border-top: 1px solid #000; margin-top: 25px; padding-top: 3px; font-size: 8px; text-transform: uppercase; }
-.os-footer .terms { font-size: 7px; text-align: justify; margin-top: 3px; line-height: 1.2; }
+.signature-block .sig-line { border-top: 1px solid #000; margin-top: 18px; padding-top: 2px; font-size: 7px; text-transform: uppercase; }
+.os-footer .terms { font-size: 6px; text-align: justify; margin-top: 2px; line-height: 1.1; }
 
 .flex { display: flex; }
 .flex-1 { flex: 1; }
