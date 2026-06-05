@@ -66,6 +66,7 @@ function renderizar(v) {
 
   // Header
   html += '<div class="header">';
+  if (emit.logotipo) html += '<div style="margin-bottom:4px;"><img src="' + esc(emit.logotipo) + '" style="max-width:60px;max-height:60px;"></div>';
   html += '<h2>' + esc(emit.razao_social) + '</h2>';
   html += '<div class="info">' + esc(emit.logradouro||'') + (emit.numero ? ', ' + esc(emit.numero) : '') + '</div>';
   html += '<div class="info">CNPJ: ' + esc(emit.cnpj||'') + '</div>';

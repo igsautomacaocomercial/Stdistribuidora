@@ -555,16 +555,17 @@ async function abrirModalPagamento(vendaId) {
   <div style="text-align:center;padding:10px;margin-bottom:12px;background:var(--bg);border-radius:8px;">
     <div style="font-size:13px;color:var(--muted);">Total a Pagar</div>
     <div style="font-size:28px;font-weight:700;">R$ ${total.toFixed(2)}</div>
-    <div style="font-size:13px;margin-top:4px;">Restante: <strong id="pgRestante">R$ ${total.toFixed(2)}</strong></div>
+    <div style="font-size:13px;margin-top:4px;">Restante: <strong id="pgRestante">R$ ${total.toFixed(2)}</strong> | Troco: <strong id="pgTrocoTotal">R$ 0,00</strong></div>
   </div>
   <div style="max-height:320px;overflow-y:auto;margin-bottom:12px;" id="pgFormasContainer">
     <table style="width:100%;border-collapse:collapse;">
-      <thead><tr style="font-size:12px;color:var(--muted);"><th style="text-align:left;padding:4px 8px;">Forma</th><th style="text-align:right;padding:4px 8px;">Valor</th><th style="text-align:right;padding:4px 8px;">Parcelas</th></tr></thead>
+      <thead><tr style="font-size:12px;color:var(--muted);"><th style="text-align:left;padding:4px 8px;">Forma</th><th style="text-align:right;padding:4px 8px;">Valor</th><th style="text-align:right;padding:4px 8px;">Recebido</th><th style="text-align:right;padding:4px 8px;width:60px;">Parc.</th></tr></thead>
       <tbody>${formas.data.map(f => `
         <tr style="border-bottom:1px solid var(--border);">
           <td style="padding:6px 8px;font-weight:600;">${escape(f.descricao)}</td>
-          <td style="padding:2px 8px;width:160px;"><input class="form-control pg-forma-valor" data-fid="${f.id}" data-fdesc="${escape(f.descricao)}" data-troco="${f.permite_troco}" data-parcela="${f.permite_parcelamento}" value="0,00" onblur="fmtMoeda(this);pgRecalcular()" onfocus="this.select()" style="text-align:right;height:32px;padding:4px 8px;"></td>
-          <td style="padding:2px 8px;width:80px;"><input class="form-control pg-forma-parcela" data-fid="${f.id}" type="number" value="1" min="1" style="text-align:center;height:32px;padding:4px 8px;${f.permite_parcelamento === false ? 'display:none;' : ''}"></td>
+          <td style="padding:2px 4px;width:140px;"><input class="form-control pg-forma-valor" data-fid="${f.id}" data-fdesc="${escape(f.descricao)}" data-troco="${f.permite_troco}" data-parcela="${f.permite_parcelamento}" value="0,00" onblur="fmtMoeda(this);pgFormaValorBlur(this)" onfocus="this.select()" style="text-align:right;height:32px;padding:4px 6px;"></td>
+          <td style="padding:2px 4px;width:140px;"><input class="form-control pg-forma-recebido" data-fid="${f.id}" value="0,00" onblur="fmtMoeda(this);pgCalcularTroco(this)" onfocus="this.select()" style="text-align:right;height:32px;padding:4px 6px;${f.permite_troco ? '' : 'display:none;'}"></td>
+          <td style="padding:2px 4px;"><input class="form-control pg-forma-parcela" data-fid="${f.id}" type="number" value="1" min="1" style="text-align:center;height:32px;padding:4px 4px;width:60px;${f.permite_parcelamento === false ? 'display:none;' : ''}"></td>
         </tr>`).join('')}</tbody>
     </table>
   </div>
@@ -583,15 +584,39 @@ async function abrirModalPagamento(vendaId) {
   }, 100);
 }
 
+window.pgFormaValorBlur = function(el) {
+  fmtMoeda(el);
+  // Auto-sync recebido = valor for methods that allow change
+  const recebido = document.querySelector(`.pg-forma-recebido[data-fid="${el.dataset.fid}"]`);
+  if (recebido && el.dataset.troco === 'true') {
+    recebido.value = el.value;
+  }
+  pgRecalcular();
+};
+
+window.pgCalcularTroco = function(el) {
+  fmtMoeda(el);
+  pgRecalcular();
+};
+
 window.pgRecalcular = function() {
   let totalPago = 0;
+  let totalTroco = 0;
   const inputs = document.querySelectorAll('.pg-forma-valor');
   inputs.forEach(inp => {
     const v = parseFloat(inp.value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
     totalPago += v;
+    if (inp.dataset.troco === 'true') {
+      const recInp = document.querySelector(`.pg-forma-recebido[data-fid="${inp.dataset.fid}"]`);
+      if (recInp) {
+        const rec = parseFloat(recInp.value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
+        totalTroco += Math.max(0, rec - v);
+      }
+    }
   });
   const restante = Math.max(0, window._pdvPagTotal - totalPago);
   document.getElementById('pgRestante').textContent = 'R$ ' + restante.toFixed(2);
+  document.getElementById('pgTrocoTotal').textContent = 'R$ ' + totalTroco.toFixed(2);
   document.getElementById('btnFinalizarPg').disabled = totalPago < window._pdvPagTotal;
 
   // Auto-suggest restante on next empty field when user fills one
@@ -599,7 +624,6 @@ window.pgRecalcular = function() {
     const inputsArr = Array.from(inputs);
     const lastFocused = document.activeElement;
     const lastIdx = inputsArr.indexOf(lastFocused);
-    // If the field user just left has a value > 0, suggest restante on the next empty
     if (lastFocused && lastFocused.classList.contains('pg-forma-valor')) {
       const lastVal = parseFloat(lastFocused.value.replace(/[^\d.,]/g,'').replace(',','.')) || 0;
       if (lastVal > 0) {
@@ -633,7 +657,10 @@ window.finalizarVendaPg = async function() {
       const fdesc = inp.dataset.fdesc;
       const parcelaInp = document.querySelector(`.pg-forma-parcela[data-fid="${fid}"]`);
       const parcelas = parcelaInp ? parseInt(parcelaInp.value) || 1 : 1;
-      pagamentos.push({ forma_pagamento_id: fid, forma_desc: fdesc, valor: v, parcelas, valor_recebido: v, troco: 0, observacao: '' });
+      const recInp = document.querySelector(`.pg-forma-recebido[data-fid="${fid}"]`);
+      const valorRecebido = recInp ? (parseFloat(recInp.value.replace(/[^\d.,]/g,'').replace(',','.')) || 0) : v;
+      const troco = Math.max(0, valorRecebido - v);
+      pagamentos.push({ forma_pagamento_id: fid, forma_desc: fdesc, valor: v, parcelas, valor_recebido: valorRecebido, troco, observacao: '' });
     }
   });
   if (!ok) { toast('Informe o valor de pelo menos uma forma de pagamento', 'warning'); return; }
