@@ -734,7 +734,7 @@ async function renderOrcamentoDetail(id) {
       <div class="card-title">Datas</div>
       <p>Emissao: ${fmtDateShort(o.data_orcamento)}</p>
       <p>Validade: ${fmtDateShort(o.validade_orcamento)}</p>
-      <p>Tecnico: ${escape(o.tecnico_nome||'-')}</p>
+      <p>Vendedor: ${escape(o.tecnico_nome||'-')}</p>
     </div>
   </div>
 
@@ -752,10 +752,10 @@ async function renderOrcamentoDetail(id) {
     </div>
   </div>
 
-  <div class="card">
+  ${o.defeito_relatado ? `<div class="card">
     <div class="card-title">Defeito Relatado</div>
-    <p>${escape(o.defeito_relatado||'Nao informado')}</p>
-  </div>
+    <p>${escape(o.defeito_relatado)}</p>
+  </div>` : ''}
 
   <div class="card">
     <div class="card-title">Itens do Orcamento</div>
@@ -839,7 +839,7 @@ async function renderOrcamentoForm(editId) {
         </select>
       </div>
       <div class="form-group">
-        <label>Tecnico</label>
+        <label>Vendedor</label>
         <select class="form-control" id="orc_tecnico_id">
           <option value="">Selecione...</option>
           ${tecnicos.data.map(t => `<option value="${t.id}" ${+orc.tecnico_id === t.id ? 'selected':''}>${escape(t.nome)}</option>`).join('')}
@@ -860,10 +860,6 @@ async function renderOrcamentoForm(editId) {
     <div class="card-title" style="margin-top:16px;">Itens do Orcamento</div>
     <div class="search-bar" style="margin-bottom:8px;">
       <input class="form-control" id="orcItemSearch" placeholder="Buscar produto ou servico..." onkeyup="filtrarItensOrc()" autocomplete="off">
-      <select class="form-control" id="orcItemTipo" style="width:auto;">
-        <option value="Produto">Produto</option>
-        <option value="Servico">Servico</option>
-      </select>
       <button class="btn btn-primary btn-sm" onclick="abrirCatalogoOrc()">+ Adicionar</button>
     </div>
     <div class="table-wrap"><table>
@@ -930,7 +926,12 @@ async function renderOrcamentoForm(editId) {
 
 window._orcItensCache = [];
 
-window.abrirCatalogoOrc = async function() {
+window.filtrarItensOrc = function() {
+  const q = document.getElementById('orcItemSearch')?.value?.trim();
+  if (q) abrirCatalogoOrc(q);
+};
+
+window.abrirCatalogoOrc = async function(preFilter) {
   const [prodRes, servRes] = await Promise.all([
     API.get('/produtos'),
     API.get('/servicos')
@@ -965,7 +966,12 @@ window.abrirCatalogoOrc = async function() {
     </div>
   </div>`;
   openModal(html);
-  setTimeout(() => document.getElementById('orcCatSearch')?.focus(), 100);
+  const searchInput = document.getElementById('orcCatSearch');
+  if (preFilter) {
+    searchInput.value = preFilter;
+    setTimeout(() => filtrarOrcCatalogo(), 50);
+  }
+  setTimeout(() => searchInput?.focus(), 100);
 };
 
 function renderOrcItemList(itens, tipo) {

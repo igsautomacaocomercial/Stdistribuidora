@@ -146,12 +146,12 @@ function renderOrcamento(orc) {
     </div>
   </div>
 
-  <div class="section">
+  ${orc.defeito_relatado ? `<div class="section">
     <div class="section-title">Defeito Relatado</div>
     <div class="section-body">
-      <p style="font-size:10px;min-height:20px;">${esc(orc.defeito_relatado||'')}</p>
+      <p style="font-size:10px;min-height:20px;">${esc(orc.defeito_relatado)}</p>
     </div>
-  </div>
+  </div>` : ''}
 
   <div class="section">
     <div class="section-title">Itens do Orcamento</div>
@@ -183,7 +183,7 @@ function renderOrcamento(orc) {
         <div class="field"><span class="label">Prazo Entrega:</span><span class="value">${esc(orc.prazo_entrega||'-')}</span></div>
         <div class="field"><span class="label">Garantia:</span><span class="value">${esc(orc.garantia||'-')}</span></div>
       </div>
-      <div class="field-row"><div class="field"><span class="label">Tecnico:</span><span class="value">${esc(orc.tecnico_nome||'-')}</span></div></div>
+      <div class="field-row"><div class="field"><span class="label">Vendedor:</span><span class="value">${esc(orc.tecnico_nome||'-')}</span></div></div>
     </div>
   </div>
 
