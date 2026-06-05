@@ -664,9 +664,8 @@ window.finalizarVendaPg = async function() {
     }
   });
   if (!pagamentos.length) { toast('Informe o valor de pelo menos uma forma de pagamento', 'warning'); return; }
-  const efetivo = totalValor - totalTroco;
-  if (Math.abs(efetivo - window._pdvPagTotal) > 0.01) {
-    toast(`Total dos pagamentos (R$ ${totalValor.toFixed(2)}) ultrapassa o valor da venda. Troco total: R$ ${totalTroco.toFixed(2)}`, 'warning');
+  if (totalValor > window._pdvPagTotal + 0.01) {
+    toast(`Total dos pagamentos (R$ ${totalValor.toFixed(2)}) excede o valor da venda (R$ ${window._pdvPagTotal.toFixed(2)}). Reduza o valor de alguma forma de pagamento.`, 'warning');
     return;
   }
   try {

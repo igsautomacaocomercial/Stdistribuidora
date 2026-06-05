@@ -168,6 +168,10 @@ router.post('/:id/finalizar', async (req, res) => {
       await client.query('ROLLBACK');
       return res.status(400).json({ success: false, error: `Valor total dos pagamentos (R$ ${totalPago.toFixed(2)}) e menor que o total da venda (R$ ${totalVenda.toFixed(2)})` });
     }
+    if (totalPago > totalVenda + 0.01) {
+      await client.query('ROLLBACK');
+      return res.status(400).json({ success: false, error: `Valor total dos pagamentos (R$ ${totalPago.toFixed(2)}) excede o total da venda (R$ ${totalVenda.toFixed(2)}). Remova pagamentos em excesso.` });
+    }
 
     // Baixar estoque dos produtos
     const itens = await client.query('SELECT * FROM venda_itens WHERE venda_id=$1', [req.params.id]);
