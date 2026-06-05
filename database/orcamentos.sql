@@ -2,6 +2,11 @@
 -- MODULO DE ORCAMENTOS - ST Distribuidora
 -- ============================================================================
 
+-- Limpar se ja existir
+DROP TABLE IF EXISTS orcamento_itens CASCADE;
+DROP TABLE IF EXISTS orcamentos CASCADE;
+DROP TYPE IF EXISTS status_orcamento CASCADE;
+
 CREATE TYPE status_orcamento AS ENUM (
     'Aberto',
     'Enviado',
@@ -70,14 +75,3 @@ CREATE TRIGGER trg_orcamentos_updated_at
     BEFORE UPDATE ON orcamentos
     FOR EACH ROW
     EXECUTE FUNCTION atualizar_orcamento_updated_at();
-
--- Funcao para gerar proximo numero de orcamento
-CREATE OR REPLACE FUNCTION proximo_numero_orcamento()
-RETURNS INTEGER AS $$
-DECLARE
-    next_val INTEGER;
-BEGIN
-    SELECT COALESCE(MAX(numero_orcamento), 0) + 1 INTO next_val FROM orcamentos;
-    RETURN next_val;
-END;
-$$ LANGUAGE plpgsql;
