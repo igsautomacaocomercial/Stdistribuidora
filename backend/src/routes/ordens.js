@@ -56,13 +56,13 @@ router.get('/:id', async (req, res) => {
 // POST /api/ordens
 router.post('/', async (req, res) => {
   try {
-    const { cliente_id, tecnico_id, marca, modelo, numero_serie, senha_bios, defeito_relatado } = req.body;
+    const { cliente_id, tecnico_id, marca, modelo, numero_serie, senha_bios, defeito_relatado, localizacao } = req.body;
     if (!cliente_id) return res.status(400).json({ success: false, error: 'cliente_id obrigatorio' });
 
     const r = await db.query(`
-      INSERT INTO ordens_servico (cliente_id,tecnico_id,marca,modelo,numero_serie,senha_bios,defeito_relatado)
-      VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, numero_os
-    `, [cliente_id, tecnico_id||null, marca||null, modelo||null, numero_serie||null, senha_bios||null, defeito_relatado||null]);
+      INSERT INTO ordens_servico (cliente_id,tecnico_id,marca,modelo,numero_serie,senha_bios,defeito_relatado,localizacao)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, numero_os
+    `, [cliente_id, tecnico_id||null, marca||null, modelo||null, numero_serie||null, senha_bios||null, defeito_relatado||null, localizacao||null]);
 
     res.status(201).json({ success: true, data: r.rows[0] });
   } catch (e) { res.status(500).json({ success: false, error: e.message }); }
@@ -71,7 +71,7 @@ router.post('/', async (req, res) => {
 // PUT /api/ordens/:id
 router.put('/:id', async (req, res) => {
   try {
-    const allowed = ['tecnico_id','marca','modelo','numero_serie','senha_bios','defeito_relatado','laudo_tecnico','valor_total'];
+    const allowed = ['tecnico_id','marca','modelo','numero_serie','senha_bios','defeito_relatado','laudo_tecnico','valor_total','localizacao'];
     const sets = []; const params = []; let i = 1;
     for (const f of allowed) {
       if (req.body[f] !== undefined) { sets.push(`${f}=$${i++}`); params.push(req.body[f]); }

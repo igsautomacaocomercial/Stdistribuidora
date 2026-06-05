@@ -339,6 +339,7 @@ async function renderOrdemDetail(id) {
       <p><strong>${escape(os.marca||'')} ${escape(os.modelo||'')}</strong></p>
       <p>NS: ${escape(os.numero_serie||'-')}</p>
       <p>Senha BIOS: ${escape(os.senha_bios||'-')}</p>
+      <p>Localizacao: ${escape(os.localizacao||'-')}</p>
       <p>Data Entrada: ${fmtDate(os.data_entrada)}</p>
       <p>Data Saida: ${os.data_saida ? fmtDate(os.data_saida) : '-'}</p>
       <div style="margin-top:8px;"><button class="btn btn-outline btn-sm no-print" onclick="abrirGaleria(${id})">Fotos (${os.fotos ? os.fotos.length : 0}/5)</button></div>
@@ -1205,7 +1206,7 @@ async function renderOrdemForm(editId) {
     </div>
     <div class="form-row">
       <div class="form-group"><label>Senha BIOS</label><input class="form-control" id="os_senha_bios" type="password"></div>
-      <div class="form-group"><label></label><div></div></div>
+      <div class="form-group"><label>Localizacao</label><input class="form-control" id="os_localizacao" placeholder="Ex: Prat. A2, B9..." autocomplete="off"></div>
     </div>
     <div class="form-group"><label>Defeito Relatado</label><textarea class="form-control" id="os_defeito" rows="3"></textarea></div>
     <div class="form-actions">
@@ -1229,6 +1230,7 @@ window.salvarOS = async function(editId) {
       modelo: $('os_modelo').value,
       numero_serie: $('os_numero_serie').value,
       senha_bios: $('os_senha_bios').value,
+      localizacao: $('os_localizacao').value,
       defeito_relatado: $('os_defeito').value
     };
 
