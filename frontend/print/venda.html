@@ -116,8 +116,9 @@ function renderizar(v) {
   if (v.pagamentos && v.pagamentos.length) {
     v.pagamentos.forEach(function(pg) {
       html += '<div class="pag-row"><span>' + esc(pg.forma_pagamento_descricao) + '</span><span>' + fmtMoeda(pg.valor) + '</span></div>';
-      if (parseFloat(pg.troco) > 0) {
-        html += '<div class="pag-row" style="color:#555;"><span>Troco</span><span>' + fmtMoeda(pg.troco) + '</span></div>';
+      if (parseFloat(pg.valor_recebido) > 0 && parseFloat(pg.valor_recebido) !== parseFloat(pg.valor)) {
+        html += '<div class="pag-row" style="font-size:8px;color:#555;"><span>Valor recebido</span><span>' + fmtMoeda(pg.valor_recebido) + '</span></div>';
+        html += '<div class="pag-row" style="font-size:8px;color:#555;"><span>Troco</span><span>' + fmtMoeda(pg.troco||0) + '</span></div>';
       }
     });
   }
